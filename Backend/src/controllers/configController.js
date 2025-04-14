@@ -25,3 +25,18 @@ export async function updateExchangeRate(req, res) {
         res.status(500).json({ message: "Error updating exchange rate", error: error.message });
     }
 }
+
+
+export async function getExchangeRate(req, res) {
+    try {
+        const config = await configModel.findOne();
+        if (!config) {
+            return res.status(404).json({ message: "Configuration not found" });
+        }
+        res.status(200).json({ exchangeRate: config.exchangeRate });
+
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching exchange rate", error: error.message });
+    }
+
+}

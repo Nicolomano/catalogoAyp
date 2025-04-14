@@ -3,12 +3,14 @@ import cors from 'cors'
 import MongoSingleton from './src/config/mongoDB-singleton.js'
 import productRouter from './src/routes/productRoute.js'
 import configRouter from './src/routes/configRoute.js'
+import corsOptions from './src/utils/cors.js'
 
 const app = express()
 const SERVER_PORT = process.env.PORT || 8080
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(cors(corsOptions))
 
 app.use('/api/products', productRouter)
 app.use('/api/config', configRouter)
