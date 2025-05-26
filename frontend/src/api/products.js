@@ -11,6 +11,15 @@ export const getProducts = async (category = '') => {
     }
 };
 
+export const fetchProducts = async () => {
+  try {
+    const res = await axiosInstance.get('/products');
+    return res.data;
+  } catch (err) {
+    console.error('❌ Error al obtener productos:', err);
+    throw err;
+  }
+};
 
 export const createProduct = async (product) => {
     console.log("🔗 API base:", import.meta.env.VITE_API_URL);

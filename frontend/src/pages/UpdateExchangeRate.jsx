@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import React from "react";
 import axiosInstance from "../api/axios.js";
+import { fetchProducts } from "../api/products.js";
 
 const UpdateExchangeRate = () => {
     const [exchangeRate, setExchangeRate] = useState('');
@@ -25,7 +26,8 @@ const UpdateExchangeRate = () => {
         e.preventDefault();
         setLoading(true);
         try {
-          await axiosInstance.put('/config', { exchangeRate });
+          await axiosInstance.put('/config/', { exchangeRate });
+          fetchProducts()
           alert('Tipo de cambio actualizado correctamente');
         } catch (error) {
           console.error(error);

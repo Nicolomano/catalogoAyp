@@ -1,10 +1,10 @@
+import ProductsAdmin from "./ProductsAdmin.jsx";
 import UpdateExchangeRate from "./UpdateExchangeRate.jsx";
-import ProductForm from "../components/productForm.jsx";
 
 export default function AdminProductForm() {
   return (
     <div>
-      <ProductForm />
+      <ProductsAdmin />
       <UpdateExchangeRate />
     </div>
   );

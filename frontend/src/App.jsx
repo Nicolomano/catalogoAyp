@@ -5,6 +5,7 @@ import CatalogPage from "./pages/catalogPage.jsx";
 import Navbar from "./components/Navbar.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 import UpdateExchangeRate from "./pages/UpdateExchangeRate.jsx";
+import ProductsAdmin from "./pages/ProductsAdmin.jsx";
 
 
 function App() {
@@ -14,9 +15,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<CatalogPage />} />
-          <Route path="/admin" element={<AdminProductForm />} />
           <Route path="/admin" element={<AdminPanel />}>
-            <Route path="products" element={<AdminProductForm />} />
+            <Route path="products" element={<ProductsAdmin />} />
             <Route path="exchange-rate" element={<UpdateExchangeRate />} />
           </Route>
 
