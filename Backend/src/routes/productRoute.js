@@ -25,14 +25,9 @@ productRouter.get("/code/:productCode", getProductByCode);
 
 //admin
 productRouter.post("/", protect, uploadCloud.single("image"), createProduct);
-productRouter.put(
-  "/:productCode",
-  protect,
-  uploadCloud.single("image"),
-  updateProduct
-);
-productRouter.delete("/:productCode", protect, deleteProduct);
-productRouter.patch("/:productCode/toggle", protect, toggleProduct);
+productRouter.put("/:id", protect, uploadCloud.single("image"), updateProduct);
+productRouter.delete("/:id", protect, deleteProduct);
+productRouter.patch("/:id/toggle", protect, toggleProduct);
 productRouter.get("/admin/all", protect, getProductsAdmin);
 productRouter.get("/admin/code/:productCode", protect, getProductByCodeAdmin);
 

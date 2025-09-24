@@ -26,7 +26,7 @@ function Layout() {
             <Link to="/contacto" className="hover:underline">
               Contacto
             </Link>
-            <Link to="/admin" className="hover:underline">
+            <Link to="/admin/dashboard" className="hover:underline">
               Admin
             </Link>
             <Link to="/cart" className="hover:underline">

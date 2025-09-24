@@ -33,42 +33,39 @@ export async function uploadImage(req, res) {
   res.json({ imageUrl: req.file.secure_url });
 }
 
-export async function updateProduct(req, res) {
-  const { productCode } = req.params;
-  const { name, description, priceUSD, category } = req.body;
-  const image = req.file ? req.file.secure_url || req.file.path : null;
-
+export const updateProduct = async (req, res) => {
   try {
-    const product = await productModel.findOne({
-      productCode: productCode.toString(),
-    });
+    const { id } = req.params;
 
-    if (!product) {
-      return res
-        .status(404)
-        .json({ message: `No se encontró producto con código ${productCode}` });
+    const updateData = {
+      name: req.body.name,
+      productCode: req.body.productCode,
+      priceUSD: req.body.priceUSD,
+      priceARS: req.body.priceARS,
+    };
+
+    // Si viene imagen de Cloudinary
+    if (req.file && req.file.path) {
+      updateData.image = req.file.path;
     }
 
-    if (name) product.name = name;
-    if (description) product.description = description;
-    if (priceUSD) product.priceUSD = parseFloat(priceUSD);
-    if (category) product.category = category;
-    if (image) product.image = image;
-
-    await product.save();
-
-    res.status(200).json({
-      message: "Producto actualizado exitosamente",
-      product,
+    const updated = await productModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
     });
+
+    if (!updated) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
+    res.json(updated);
   } catch (error) {
-    console.error("💥 Error actualizando producto:", error);
     res.status(500).json({
       message: "Error actualizando producto",
       error: error.message,
     });
   }
-}
+};
 
 /// Obtener producto por código
 export async function getProductByCode(req, res) {
@@ -160,11 +157,11 @@ export const getProductsByCategory = async (req, res) => {
 };
 
 export async function deleteProduct(req, res) {
-  const { productCode } = req.params;
+  const { id } = req.params;
 
   try {
     const product = await productModel.findOneAndDelete({
-      productCode: productCode.toString(),
+      _id: id.toString(),
     });
 
     if (!product) {
@@ -185,14 +182,14 @@ export async function deleteProduct(req, res) {
 
 export const toggleProduct = async (req, res) => {
   try {
-    const { productCode } = req.params;
+    const { id } = req.params;
 
-    const product = await Product.findOne({ productCode });
+    const product = await productModel.findById(id);
     if (!product) {
       return res.status(404).json({ message: "Producto no encontrado" });
     }
 
-    product.active = !product.active; // invierte el estado
+    product.active = !product.active;
     await product.save();
 
     res.json({
@@ -202,9 +199,10 @@ export const toggleProduct = async (req, res) => {
       product,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error al cambiar estado de producto", error });
+    res.status(500).json({
+      message: "Error al cambiar estado de producto",
+      error: error.message,
+    });
   }
 };
 

@@ -4,25 +4,25 @@ import config from "../config/config.js";
 
 const JWT_SECRET = config.jwtSecret;
 
-// export const registerAdmin = async (req, res) => {
-//   try {
-//     const { username, password } = req.body;
-//     const userExists = await userModel.findOne({ username });
-//     if (userExists)
-//       return res.status(400).json({ message: "Usuario ya existe" });
-
-//     const user = new userModel({ username, password });
-//     await user.save();
-
-//     res.status(201).json({ message: "Admin creado correctamente" });
-//   } catch (error) {
-//     res.status(500).json({ message: "Error creando admin", error });
-//   }
-// };
-
-export const login = async (req, res) => {
+export const registerAdmin = async (req, res) => {
   try {
     const { username, password } = req.body;
+    const userExists = await userModel.findOne({ username });
+    if (userExists)
+      return res.status(400).json({ message: "Usuario ya existe" });
+
+    const user = new userModel({ username, password });
+    await user.save();
+
+    res.status(201).json({ message: "Admin creado correctamente" });
+  } catch (error) {
+    res.status(500).json({ message: "Error creando admin", error });
+  }
+};
+
+export const login = async (req, res) => {
+  const { username, password } = req.body;
+  try {
     const user = await userModel.findOne({ username });
     if (!user)
       return res.status(401).json({ message: "Credenciales inválidas" });
@@ -34,9 +34,12 @@ export const login = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, username: user.username },
       JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "7d" }
     );
+    console.log("👉 Body login recibido:", req.body);
+
     res.json({ token });
+    console.log(token);
   } catch (error) {
     res.status(500).json({ message: "Error en login", error });
   }
