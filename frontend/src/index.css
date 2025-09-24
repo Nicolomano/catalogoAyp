@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@theme{
+  --color-ayp: #0033cc;        /* azul principal */
+  --color-ayp-dark: #001a80;   /* azul oscuro */
+}
