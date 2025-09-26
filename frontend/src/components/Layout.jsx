@@ -4,7 +4,7 @@ import { useCart } from "../Context/CartContext.jsx";
 function Layout() {
   const { cart } = useCart();
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
+  const token = localStorage.getItem("token");
   return (
     <div className="flex flex-col min-h-screen bg-ayp text-white">
       {/* 🔹 Navbar */}
@@ -26,9 +26,11 @@ function Layout() {
             <Link to="/contacto" className="hover:underline">
               Contacto
             </Link>
-            <Link to="/admin/dashboard" className="hover:underline">
-              Admin
-            </Link>
+            {token && (
+              <Link to="/admin/dashboard" className="hover:underline">
+                Admin
+              </Link>
+            )}
             <Link to="/cart" className="hover:underline">
               🛒
               {

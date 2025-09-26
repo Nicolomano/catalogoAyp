@@ -14,8 +14,10 @@ function AdminLogin({ onLogin }) {
       console.log("enviando credenciales", { username: email, password });
       const res = await API.post("/auth/login", { username: email, password });
       localStorage.setItem("token", res.data.token);
-      onLogin(res.data.user);
       console.log("login exitoso", res.data);
+      if (res.data.user) {
+        onLogin(res.data.user);
+      }
       navigate("/admin/dashboard");
     } catch (err) {
       setError("Credenciales inválidas", err);

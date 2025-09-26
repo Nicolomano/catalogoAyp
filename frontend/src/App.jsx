@@ -3,12 +3,13 @@ import Layout from "./components/Layout.jsx";
 import Catalogo from "./pages/Catalogo.jsx";
 import ProductDetail from "./pages/ProductDetail.jsx";
 import Cart from "./pages/Cart.jsx";
+
 import AdminLogin from "./pages/AdminLogin.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
 import AdminLayout from "./components/AdminLayout.jsx";
 import AdminProducts from "./pages/AdminProducts.jsx";
 import AdminConfig from "./pages/AdminConfig.jsx";
-import AdminDashboard from "./pages/AdminDashboard.jsx"; // 👈 nuevo dashboard
+import AdminDashboard from "./pages/AdminDashboard.jsx";
 
 function App() {
   return (
@@ -25,8 +26,10 @@ function App() {
           />
         </Route>
 
-        {/* Admin */}
+        {/* Admin: login público */}
         <Route path="/admin/login" element={<AdminLogin />} />
+
+        {/* Admin: rutas protegidas anidadas */}
         <Route
           path="/admin"
           element={
@@ -35,9 +38,13 @@ function App() {
             </PrivateRoute>
           }
         >
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="products" element={<AdminProducts />} />
-          <Route path="config" element={<AdminConfig />} />
+          <Route index element={<AdminDashboard />} /> {/* /admin */}
+          <Route path="dashboard" element={<AdminDashboard />} />{" "}
+          {/* /admin/dashboard */}
+          <Route path="products" element={<AdminProducts />} />{" "}
+          {/* /admin/products */}
+          <Route path="config" element={<AdminConfig />} />{" "}
+          {/* /admin/config */}
         </Route>
       </Routes>
     </BrowserRouter>

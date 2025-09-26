@@ -158,16 +158,17 @@ function AdminProducts() {
                 try {
                   const formData = new FormData();
                   formData.append("name", editingProduct.name);
+                  formData.append("description", editingProduct.description);
                   formData.append("productCode", editingProduct.productCode);
                   formData.append("priceUSD", editingProduct.priceUSD);
-                  formData.append("priceARS", editingProduct.priceARS);
+                  formData.append("category", editingProduct.category);
                   if (editingProduct.imageFile) {
                     formData.append("image", editingProduct.imageFile);
                   }
 
                   let res;
                   if (editingProduct._id) {
-                    // PUT con FormData
+                    // update
                     res = await API.put(
                       `/products/${editingProduct._id}`,
                       formData,
@@ -180,14 +181,13 @@ function AdminProducts() {
                         },
                       }
                     );
-
                     setProducts(
                       products.map((p) =>
                         p._id === editingProduct._id ? res.data : p
                       )
                     );
                   } else {
-                    // POST nuevo producto
+                    // create
                     res = await API.post("/products", formData, {
                       headers: {
                         Authorization: `Bearer ${localStorage.getItem(
@@ -221,6 +221,23 @@ function AdminProducts() {
                     })
                   }
                   className="border w-full p-2 rounded mt-1"
+                  required
+                />
+              </label>
+
+              {/* Descripción */}
+              <label className="block mb-2">
+                Descripción
+                <textarea
+                  value={editingProduct.description || ""}
+                  onChange={(e) =>
+                    setEditingProduct({
+                      ...editingProduct,
+                      description: e.target.value,
+                    })
+                  }
+                  className="border w-full p-2 rounded mt-1"
+                  required
                 />
               </label>
 
@@ -237,6 +254,7 @@ function AdminProducts() {
                     })
                   }
                   className="border w-full p-2 rounded mt-1"
+                  required
                 />
               </label>
 
@@ -245,30 +263,33 @@ function AdminProducts() {
                 Precio (USD)
                 <input
                   type="number"
-                  value={editingProduct.priceUSD ?? 0}
+                  step="0.01"
+                  value={editingProduct.priceUSD ?? ""}
                   onChange={(e) =>
                     setEditingProduct({
                       ...editingProduct,
-                      priceUSD: Number(e.target.value),
+                      priceUSD: e.target.value,
                     })
                   }
                   className="border w-full p-2 rounded mt-1"
+                  required
                 />
               </label>
 
-              {/* Precio ARS */}
+              {/* Categoría */}
               <label className="block mb-4">
-                Precio (ARS)
+                Categoría
                 <input
-                  type="number"
-                  value={editingProduct.priceARS ?? 0}
+                  type="text"
+                  value={editingProduct.category || ""}
                   onChange={(e) =>
                     setEditingProduct({
                       ...editingProduct,
-                      priceARS: Number(e.target.value),
+                      category: e.target.value,
                     })
                   }
                   className="border w-full p-2 rounded mt-1"
+                  required
                 />
               </label>
 
@@ -287,15 +308,6 @@ function AdminProducts() {
                   className="mt-1"
                 />
               </label>
-
-              {/* Preview si hay imagen */}
-              {editingProduct.image && (
-                <img
-                  src={editingProduct.image}
-                  alt="Preview"
-                  className="w-32 h-32 object-cover rounded mb-4"
-                />
-              )}
 
               {/* Botones */}
               <div className="flex justify-end gap-2">

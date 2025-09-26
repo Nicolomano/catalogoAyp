@@ -5,15 +5,15 @@ const CartContext = createContext();
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
 
-  const addToCart = (product) => {
+  const addToCart = (product, quantity = 1) => {
     setCart((prev) => {
       const exists = prev.find((p) => p._id === product._id);
       if (exists) {
         return prev.map((p) =>
-          p._id === product._id ? { ...p, quantity: p.quantity + 1 } : p
+          p._id === product._id ? { ...p, quantity: p.quantity + quantity } : p
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity }];
     });
   };
 

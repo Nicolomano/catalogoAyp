@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api/axios";
 import { useCart } from "../Context/CartContext.jsx";
+import toast from "react-hot-toast";
 
 function Catalogo() {
   const [products, setProducts] = useState([]);
@@ -45,11 +46,13 @@ function Catalogo() {
           >
             {/* Imagen clickable */}
             <Link to={`/product/${p.productCode}`}>
-              <img
-                src={p.image}
-                alt={p.name}
-                className="w-full h-56 object-cover hover:opacity-90 transition"
-              />
+              <div className="h-56 flex items-center justify-center bg-white">
+                <img
+                  src={p.image}
+                  alt={p.name}
+                  className="max-h-full object-contain"
+                />
+              </div>
             </Link>
 
             <div className="p-4 flex-1 flex flex-col justify-between">
@@ -73,15 +76,26 @@ function Catalogo() {
               )}
 
               {/* Botón separado */}
-              <button
-                className="mt-4 bg-ayp text-white px-4 py-2 rounded-lg hover:bg-ayp-dark transition"
-                onClick={() => {
-                  addToCart(p);
-                  alert(`Agregado al pedido: ${p.name}`);
-                }}
-              >
-                Agregar al pedido
-              </button>
+              <div>
+                <input
+                  type="number"
+                  min="1"
+                  defaultValue="1"
+                  className="w-16 border rounded px-2 py-1 text-center"
+                  onChange={(e) => {
+                    p.quantity = parseInt(e.target.value);
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    addToCart(p, p.quantity || 1);
+                    toast.success("producto agregado con exito");
+                  }}
+                  className="bg-ayp text-white px-3 py-2 rounded-md flex-1"
+                >
+                  agregar al pedido
+                </button>
+              </div>
             </div>
           </div>
         ))}
