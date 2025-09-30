@@ -1,18 +1,24 @@
-import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import API from "../api/axios";
+import { useCart } from "../Context/CartContext";
+import toast from "react-hot-toast";
 
 function ProductDetail() {
   const { productCode } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+
+  const { addToCart } = useCart();
 
   useEffect(() => {
-    API.get(`/products/code/${productCode}`) // o `/products/code/${code}` si usás productCode
+    API.get(`/products/code/${productCode}`)
       .then((res) => setProduct(res.data))
-      .catch((err) => console.error("❌ Error cargando producto:", err))
+      .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, [productCode]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-ayp">
@@ -23,38 +29,72 @@ function ProductDetail() {
 
   if (!product) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-screen bg-ayp">
-        <p className="text-white text-xl mb-4">Producto no encontrado</p>
-        <Link
-          to="/"
-          className="bg-white text-ayp px-4 py-2 rounded-lg hover:bg-gray-200"
-        >
-          Volver al catálogo
-        </Link>
+      <div className="flex justify-center items-center min-h-screen bg-ayp">
+        <p className="text-white text-xl">Producto no encontrado</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-ayp min-h-screen p-8">
-      <div className="bg-white text-ayp rounded-xl shadow-lg max-w-3xl mx-auto overflow-hidden">
-        <img
-          src={product.image}
-          alt={product.name}
-          className="w-full h-80 object-cover"
-        />
-        <div className="p-6">
-          <h1 className="text-3xl font-bold uppercase">{product.name}</h1>
-          <p className="text-gray-600 mt-2">{product.description}</p>
-          <p className="text-2xl font-bold text-ayp mt-4">
-            {product.priceARS} ARS
-          </p>
-          <button className="mt-6 bg-ayp text-white px-6 py-2 rounded-lg hover:bg-ayp-dark transition">
-            Agregar al pedido
+    <div className="min-h-screen bg-ayp p-8 flex justify-center">
+      <div className="bg-white rounded-2xl shadow-lg max-w-4xl w-full p-6 md:p-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Imagen */}
+        <div className="flex items-center justify-center bg-gray-100 rounded-lg p-4">
+          <img
+            src={product.image}
+            alt={product.name}
+            className="object-contain max-h-96"
+          />
+        </div>
+
+        {/* Info */}
+        <div className="flex flex-col justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              {product.name}
+            </h1>
+            {product.description && (
+              <p className="text-gray-600 mb-6">{product.description}</p>
+            )}
+            {product.priceARS && (
+              <p className="text-3xl font-bold text-blue-700 mb-8">
+                {product.priceARS.toLocaleString("es-AR")} ARS
+              </p>
+            )}
+          </div>
+
+          {/* Controles cantidad */}
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <button
+              onClick={() => setQuantity(quantity > 1 ? quantity - 1 : 1)}
+              className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-lg"
+            >
+              −
+            </button>
+            <span className="text-xl font-bold text-blue-700">{quantity}</span>
+            <button
+              onClick={() => setQuantity(quantity + 1)}
+              className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-lg"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Botón agregar */}
+          <button
+            onClick={() => {
+              addToCart(product, quantity);
+              toast.success("Producto agregado al carrito");
+            }}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg flex items-center justify-center gap-3 text-lg font-semibold"
+          >
+            🛒 Agregar al pedido
           </button>
+
+          {/* Volver */}
           <Link
             to="/"
-            className="block mt-4 text-sm text-blue-600 hover:underline"
+            className="mt-6 text-blue-600 hover:underline text-sm text-center"
           >
             ← Volver al catálogo
           </Link>

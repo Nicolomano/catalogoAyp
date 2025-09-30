@@ -21,11 +21,18 @@ export function CartProvider({ children }) {
     setCart((prev) => prev.filter((item) => item._id !== id));
   };
 
+  const updateQuantity = (productCode, quantity) => {
+    if (quantity <= 0) return removeFromCart(productCode);
+    setCart((prev) =>
+      prev.map((p) => (p.productCode === productCode ? { ...p, quantity } : p))
+    );
+  };
+
   const clearCart = () => setCart([]);
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, removeFromCart, clearCart }}
+      value={{ cart, addToCart, removeFromCart, clearCart, updateQuantity }}
     >
       {children}
     </CartContext.Provider>

@@ -16,7 +16,7 @@ function AdminLayout() {
           A&P Admin
         </div>
         <nav className="flex-1 p-4 space-y-3">
-          <Link to="/admin/products" className="block hover:underline">
+          <Link to="/admin/dashboard" className="block hover:underline">
             📦 Productos
           </Link>
           <Link to="/admin/config" className="block hover:underline">

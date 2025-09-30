@@ -6,23 +6,69 @@ import toast from "react-hot-toast";
 
 function Catalogo() {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const { addToCart } = useCart();
+  const [quantities, setQuantities] = useState({});
+
+  // filtros
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     API.get("/products")
       .then((res) => {
-        if (Array.isArray(res.data.products)) {
-          setProducts(res.data.products);
-        } else if (Array.isArray(res.data)) {
-          setProducts(res.data);
-        } else {
-          setProducts([]);
-        }
+        let prods = [];
+        if (Array.isArray(res.data.products)) prods = res.data.products;
+        else if (Array.isArray(res.data)) prods = res.data;
+
+        setProducts(prods);
+        setFilteredProducts(prods);
+
+        // 🔹 obtener categorías únicas
+        const uniqueCats = [
+          ...new Set(prods.map((p) => p.category).filter(Boolean)),
+        ];
+        setCategories(uniqueCats);
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
+
+  // 🔹 Filtro dinámico
+  useEffect(() => {
+    let result = [...products];
+
+    // filtro por categoría
+    if (category !== "all") {
+      result = result.filter((p) => p.category === category);
+    }
+
+    // búsqueda por nombre o código
+    if (search.trim() !== "") {
+      const term = search.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(term) ||
+          p.productCode.toLowerCase().includes(term)
+      );
+    }
+
+    setFilteredProducts(result);
+  }, [search, category, products]);
+
+  const handleIncrease = (code) => {
+    setQuantities((prev) => ({ ...prev, [code]: (prev[code] || 1) + 1 }));
+  };
+
+  const handleDecrease = (code) => {
+    setQuantities((prev) => {
+      const newVal = (prev[code] || 1) - 1;
+      return { ...prev, [code]: newVal > 1 ? newVal : 1 };
+    });
+  };
 
   if (loading) {
     return (
@@ -38,68 +84,107 @@ function Catalogo() {
         Catálogo A&P
       </h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-        {products.map((p) => (
-          <div
-            key={p._id}
-            className="bg-white text-ayp rounded-xl shadow-md overflow-hidden flex flex-col"
-          >
-            {/* Imagen clickable */}
-            <Link to={`/product/${p.productCode}`}>
-              <div className="h-56 flex items-center justify-center bg-white">
-                <img
-                  src={p.image}
-                  alt={p.name}
-                  className="max-h-full object-contain"
-                />
-              </div>
-            </Link>
+      {/* 🔹 Barra de búsqueda y filtros */}
+      <div className="flex flex-col md:flex-row justify-center items-center gap-4 mb-8">
+        <input
+          type="text"
+          placeholder="Buscar por nombre o código..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full md:w-1/2 px-4 py-2 rounded-lg border border-gray-300 text-white"
+        />
 
-            <div className="p-4 flex-1 flex flex-col justify-between">
-              {/* Nombre clickable */}
-              <Link to={`/product/${p.productCode}`}>
-                <h2 className="text-lg font-bold uppercase hover:underline">
-                  {p.name}
-                </h2>
-              </Link>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full md:w-1/4 px-4 py-2 rounded-lg border border-gray-300 text-white"
+        >
+          <option value="all">Todas las categorías</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
 
-              {p.description && (
-                <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                  {p.description}
-                </p>
-              )}
+      {/* 🔹 Grid de productos */}
+      {filteredProducts.length === 0 ? (
+        <p className="text-white text-center text-lg">
+          No se encontraron productos.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+          {filteredProducts.map((p) => {
+            const quantity = quantities[p.productCode] || 1;
+            return (
+              <div
+                key={p._id}
+                className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition p-6 flex flex-col"
+              >
+                {/* Imagen + info */}
+                <Link
+                  to={`/product/${p.productCode}`}
+                  className="flex flex-col items-center mb-4"
+                >
+                  <div className="h-40 flex items-center justify-center mb-4">
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="object-contain max-h-full"
+                    />
+                  </div>
+                  <h2 className="text-lg font-semibold text-gray-800 text-center">
+                    {p.name}
+                  </h2>
+                  {p.description && (
+                    <p className="text-sm text-gray-500 text-center line-clamp-2">
+                      {p.description}
+                    </p>
+                  )}
+                </Link>
 
-              {p.priceARS && (
-                <p className="text-xl font-bold text-ayp mt-4">
-                  {p.priceARS.toLocaleString("es-AR")} ARS
-                </p>
-              )}
+                {/* Precio */}
+                {p.priceARS && (
+                  <p className="text-xl font-bold text-blue-700 mb-4 text-center">
+                    {p.priceARS.toLocaleString("es-AR")} ARS
+                  </p>
+                )}
 
-              {/* Botón separado */}
-              <div>
-                <input
-                  type="number"
-                  min="1"
-                  defaultValue="1"
-                  className="w-16 border rounded px-2 py-1 text-center"
-                  onChange={(e) => {
-                    p.quantity = parseInt(e.target.value);
-                  }}
-                />
+                {/* Controles cantidad */}
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <button
+                    onClick={() => handleDecrease(p.productCode)}
+                    className="bg-gray-500 hover:bg-gray-600 px-3 py-1 rounded"
+                  >
+                    −
+                  </button>
+                  <span className="px-4 font-bold text-blue-700">
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={() => handleIncrease(p.productCode)}
+                    className="bg-gray-500 hover:bg-gray-600 px-3 py-1 rounded"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Botón agregar */}
                 <button
                   onClick={() => {
-                    addToCart(p, p.quantity || 1);
-                    toast.success("producto agregado con exito");
+                    addToCart(p, quantity);
+                    toast.success("Producto agregado con éxito");
                   }}
-                  className="bg-ayp text-white px-3 py-2 rounded-md flex-1"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"
                 >
-                  agregar al pedido
+                  🛒 Agregar al pedido
                 </button>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

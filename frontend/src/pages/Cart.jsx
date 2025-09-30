@@ -1,7 +1,7 @@
 import { useCart } from "../Context/CartContext.jsx";
 
 function Cart() {
-  const { cart, removeFromCart, clearCart } = useCart();
+  const { cart, removeFromCart, clearCart, updateQuantity } = useCart();
 
   if (cart.length === 0) {
     return <p className="text-center text-lg">🛒 El carrito está vacío</p>;
@@ -38,7 +38,28 @@ function Cart() {
           >
             <div>
               <h2 className="font-bold">{item.name}</h2>
-              <p>Cantidad: {item.quantity}</p>
+              {/* Controles de cantidad */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    updateQuantity(item.productCode, item.quantity - 1)
+                  }
+                  className="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded"
+                >
+                  −
+                </button>
+
+                <span className="px-4 text-lg font-bold">{item.quantity}</span>
+
+                <button
+                  onClick={() =>
+                    updateQuantity(item.productCode, item.quantity + 1)
+                  }
+                  className="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded"
+                >
+                  +
+                </button>
+              </div>
               <p>{item.priceARS.toLocaleString("es-AR")} ARS c/u</p>
             </div>
             <button
