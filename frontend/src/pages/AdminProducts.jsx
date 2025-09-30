@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../api/axios";
+import toast from "react-hot-toast";
 
 function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -21,17 +22,18 @@ function AdminProducts() {
 
   const handleDelete = async (id) => {
     if (!confirm("¿Seguro que quieres eliminar este producto?")) return;
-
     try {
       await API.delete(`/products/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       setProducts(products.filter((p) => p._id !== id));
+      toast.success("✅ Producto eliminado con éxito");
     } catch (err) {
       console.error(
         "❌ Error al eliminar producto:",
         err.response?.data || err
       );
+      toast.error("❌ Error al eliminar producto");
     }
   };
 
@@ -45,10 +47,11 @@ function AdminProducts() {
         }
       );
 
-      // Reemplazar el producto en el array local
       setProducts(products.map((p) => (p._id === id ? res.data.product : p)));
+      toast.success(res.data.message);
     } catch (err) {
       console.error("❌ Error al cambiar estado:", err.response?.data || err);
+      toast.error("❌ No se pudo cambiar el estado del producto");
     }
   };
 
@@ -166,6 +169,12 @@ function AdminProducts() {
                     formData.append("image", editingProduct.imageFile);
                   }
 
+                  if (editingProduct._id) {
+                    toast.success("✅ Producto actualizado con éxito");
+                  } else {
+                    toast.success("✅ Producto creado con éxito");
+                  }
+                  setEditingProduct(null);
                   let res;
                   if (editingProduct._id) {
                     // update
@@ -264,6 +273,7 @@ function AdminProducts() {
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={editingProduct.priceUSD ?? ""}
                   onChange={(e) =>
                     setEditingProduct({

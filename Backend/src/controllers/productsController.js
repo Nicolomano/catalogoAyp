@@ -1,4 +1,5 @@
 import productModel from "../services/models/productModel.js";
+import Config from "../services/models/configModel.js";
 
 export async function createProduct(req, res) {
   const { name, description, priceUSD, category, productCode } = req.body;
@@ -36,14 +37,17 @@ export async function uploadImage(req, res) {
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
+    const config = await Config.findOne();
+    const exchangeRate = config ? config.exchangeRate : 1;
 
     const updateData = {
       name: req.body.name,
       productCode: req.body.productCode,
-      priceUSD: req.body.priceUSD,
-      priceARS: req.body.priceARS,
+      priceUSD: parseFloat(req.body.priceUSD),
+      category: req.body.category,
     };
 
+    updateData.priceARS = updateData.priceUSD * exchangeRate;
     // Si viene imagen de Cloudinary
     if (req.file && req.file.path) {
       updateData.image = req.file.path;
