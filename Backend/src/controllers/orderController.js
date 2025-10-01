@@ -48,6 +48,9 @@ export const createOrder = async (req, res) => {
       const qty = Number(item.quantity || 0);
       if (qty <= 0) continue;
 
+      prod.soldCount = (prod.soldCount || 0) + qty;
+      await prod.save();
+
       const subUSD = prod.priceUSD * qty;
       const subARS = prod.priceARS * qty; // ya persistido con tu lógica de exchangeRate
 
@@ -83,9 +86,9 @@ export const createOrder = async (req, res) => {
     const lines = orderProducts
       .map(
         (p) =>
-          `• ${p.quantity}× ${p.name} — ${formatMoney(
-            p.priceUSD * p.quantity
-          )} USD (${formatMoney(p.priceARS * p.quantity)} ARS)`
+          `• $ ${p.quantity}× ${p.name} — ${formatMoney(
+            p.priceARS * p.quantity
+          )} ($ ${formatMoney(p.priceARS)} ARS c/u)`
       )
       .join("\n");
 
@@ -134,6 +137,30 @@ export const getOrderById = async (req, res) => {
     res.status(500).json({
       message: "Error obteniendo orden",
       error: error?.message || error,
+    });
+  }
+};
+
+export const updateOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["pendiente", "contestada"].includes(status)) {
+      return res.status(400).json({ message: "Estado inválido" });
+    }
+
+    const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
+
+    if (!order) {
+      return res.status(404).json({ message: "Orden no encontrada" });
+    }
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error actualizando estado de orden",
+      error: error.message,
     });
   }
 };

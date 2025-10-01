@@ -16,9 +16,12 @@ function Catalogo() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [categories, setCategories] = useState([]);
+  const [sort, setSort] = useState("views:desc"); // 👈 nuevo estado para ordenar
 
+  // cargar productos desde API
   useEffect(() => {
-    API.get("/products")
+    setLoading(true);
+    API.get(`/products?limit=0&sort=${sort}`)
       .then((res) => {
         let prods = [];
         if (Array.isArray(res.data.products)) prods = res.data.products;
@@ -35,18 +38,16 @@ function Catalogo() {
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [sort]); // 👈 vuelve a cargar si cambia el orden
 
-  // 🔹 Filtro dinámico
+  // 🔹 Filtro dinámico en memoria
   useEffect(() => {
     let result = [...products];
 
-    // filtro por categoría
     if (category !== "all") {
       result = result.filter((p) => p.category === category);
     }
 
-    // búsqueda por nombre o código
     if (search.trim() !== "") {
       const term = search.toLowerCase();
       result = result.filter(
@@ -84,20 +85,20 @@ function Catalogo() {
         Catálogo A&P
       </h1>
 
-      {/* 🔹 Barra de búsqueda y filtros */}
+      {/* 🔹 Barra de búsqueda, categoría y orden */}
       <div className="flex flex-col md:flex-row justify-center items-center gap-4 mb-8">
         <input
           type="text"
           placeholder="Buscar por nombre o código..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full md:w-1/2 px-4 py-2 rounded-lg border border-gray-300 text-white"
+          className="w-full md:w-1/3 px-4 py-2 rounded-lg border border-gray-300 text-black"
         />
 
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="w-full md:w-1/4 px-4 py-2 rounded-lg border border-gray-300 text-white"
+          className="w-full md:w-1/4 px-4 py-2 rounded-lg border border-gray-300 text-black"
         >
           <option value="all">Todas las categorías</option>
           {categories.map((c) => (
@@ -105,6 +106,20 @@ function Catalogo() {
               {c}
             </option>
           ))}
+        </select>
+
+        {/* 👇 Nuevo selector de orden */}
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          className="w-full md:w-1/4 px-4 py-2 rounded-lg border border-gray-300 text-black"
+        >
+          <option value="name:asc">Orden alfabético (A-Z)</option>
+          <option value="createdAt:desc">Más nuevos</option>
+          <option value="soldCount:desc">Más vendidos</option>
+          <option value="views:desc">Más populares</option>
+          <option value="priceARS:desc">Mayor precio</option>
+          <option value="priceARS:asc">Menor precio</option>
         </select>
       </div>
 

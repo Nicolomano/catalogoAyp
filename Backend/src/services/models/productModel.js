@@ -15,6 +15,8 @@ const productSchema = new mongoose.Schema({
     required: true,
   },
   active: { type: Boolean, default: true },
+  views: { type: Number, default: 0 },
+  soldCount: { type: Number, default: 0 },
 });
 
 productSchema.pre("save", async function (next) {

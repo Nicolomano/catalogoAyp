@@ -21,8 +21,8 @@ const orderSchema = new mongoose.Schema(
     customerPhone: { type: String, required: true },
     status: {
       type: String,
-      enum: ["pending", "confirmed"],
-      default: "pending",
+      enum: ["pendiente", "contestado"],
+      default: "pendiente",
     },
   },
   { timestamps: true }

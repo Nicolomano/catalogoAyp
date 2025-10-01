@@ -10,6 +10,7 @@ import AdminLayout from "./components/AdminLayout.jsx";
 import AdminProducts from "./pages/AdminProducts.jsx";
 import AdminConfig from "./pages/AdminConfig.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
+import AdminOrders from "./components/AdminOrders.jsx";
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
           }
         >
           <Route index element={<AdminDashboard />} /> {/* /admin */}
+          <Route path="orders" element={<AdminOrders />} />{" "}
           <Route path="dashboard" element={<AdminDashboard />} />{" "}
           {/* /admin/dashboard */}
           <Route path="products" element={<AdminProducts />} />{" "}
