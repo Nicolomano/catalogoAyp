@@ -22,6 +22,9 @@ function AdminLayout() {
           <Link to="/admin/config" className="block hover:underline">
             ⚙️ Configuración
           </Link>
+          <Link to="/admin/orders" className="hover:underline">
+            📋 Órdenes
+          </Link>
         </nav>
         <button
           onClick={logout}

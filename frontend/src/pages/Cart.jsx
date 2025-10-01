@@ -1,35 +1,63 @@
 import { useCart } from "../Context/CartContext.jsx";
+import { useState } from "react";
+import API from "../api/axios";
 
 function Cart() {
   const { cart, removeFromCart, clearCart, updateQuantity } = useCart();
+  const [loading, setLoading] = useState(false);
+
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
 
   if (cart.length === 0) {
     return <p className="text-center text-lg">🛒 El carrito está vacío</p>;
   }
 
-  // calcular total
   const total = cart.reduce(
     (sum, item) => sum + item.priceARS * item.quantity,
     0
   );
 
-  // preparar mensaje para WhatsApp
-  const mensaje = `Hola, quiero hacer un pedido:\n\n${cart
-    .map(
-      (item) =>
-        `- ${item.name} (Código: ${item.productCode}) x${
-          item.quantity
-        } - $${item.priceARS.toLocaleString("es-AR")} c/u`
-    )
-    .join("\n")}\n\nTotal: $${total.toLocaleString("es-AR")} ARS`;
+  const handleConfirm = async () => {
+    if (!customerName || !customerPhone) {
+      alert("Por favor, ingresa tu nombre y teléfono.");
+      return;
+    }
 
-  const urlWhatsapp = `https://wa.me/541168815837?text=${encodeURIComponent(
-    mensaje
-  )}`;
+    try {
+      setLoading(true);
+
+      // Construir payload para el backend
+      const payload = {
+        customerName,
+        customerPhone,
+        products: cart.map((item) => ({
+          productId: item._id, // 👈 importante, ID real del producto
+          quantity: item.quantity,
+        })),
+      };
+
+      // Enviar al backend
+      const res = await API.post("/orders", payload);
+      const { waLink } = res.data;
+
+      // Vaciar carrito después de confirmar
+      clearCart();
+
+      // Abrir WhatsApp con el link generado en backend
+      window.open(waLink, "_blank");
+    } catch (err) {
+      console.error("❌ Error creando orden:", err.response?.data || err);
+      alert("Error al procesar la orden. Intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Tu pedido</h1>
+
       <ul className="space-y-4">
         {cart.map((item) => (
           <li
@@ -38,7 +66,6 @@ function Cart() {
           >
             <div>
               <h2 className="font-bold">{item.name}</h2>
-              {/* Controles de cantidad */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() =>
@@ -48,9 +75,7 @@ function Cart() {
                 >
                   −
                 </button>
-
                 <span className="px-4 text-lg font-bold">{item.quantity}</span>
-
                 <button
                   onClick={() =>
                     updateQuantity(item.productCode, item.quantity + 1)
@@ -76,6 +101,25 @@ function Cart() {
         Total: {total.toLocaleString("es-AR")} ARS
       </p>
 
+      {/* Formulario de cliente */}
+      <div className="mt-6 space-y-4">
+        <input
+          type="text"
+          placeholder="Tu nombre"
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
+          className="w-full px-4 py-2 rounded border"
+        />
+        <input
+          type="text"
+          placeholder="Tu teléfono (ej: 1122334455)"
+          value={customerPhone}
+          onChange={(e) => setCustomerPhone(e.target.value)}
+          className="w-full px-4 py-2 rounded border"
+        />
+      </div>
+
+      {/* Acciones */}
       <div className="mt-6 flex space-x-4">
         <button
           className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
@@ -84,14 +128,13 @@ function Cart() {
           Vaciar carrito
         </button>
 
-        <a
-          href={urlWhatsapp}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={handleConfirm}
+          disabled={loading}
           className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
         >
-          Finalizar pedido en WhatsApp
-        </a>
+          {loading ? "Procesando..." : "Finalizar pedido"}
+        </button>
       </div>
     </div>
   );

@@ -75,10 +75,14 @@ export const updateProduct = async (req, res) => {
 export async function getProductByCode(req, res) {
   const { productCode } = req.params;
   try {
-    const product = await productModel.findOne({
-      productCode: productCode.toString(),
-      active: true,
-    });
+    const product = await productModel.findOneAndUpdate(
+      {
+        productCode: productCode.toString(),
+        active: true,
+      },
+      { $inc: { views: 1 } },
+      { new: true }
+    );
 
     if (!product) {
       return res
@@ -107,7 +111,7 @@ export const getProductsByCategory = async (req, res) => {
       maxPrice,
       sort,
       page = 1,
-      limit = 10,
+      limit = 0,
     } = req.query;
 
     // 🔹 Filtros
