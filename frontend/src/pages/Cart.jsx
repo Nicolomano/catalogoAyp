@@ -136,6 +136,10 @@ function Cart() {
           {loading ? "Procesando..." : "Finalizar pedido"}
         </button>
       </div>
+      <p className="mt-6 text-center text-sm text-gray-500 italic">
+        ⚠️ Los precios son orientativos y pueden variar sin previo aviso. La
+        cotización final será enviada por WhatsApp.
+      </p>
     </div>
   );
 }

@@ -60,6 +60,7 @@ export const createOrder = async (req, res) => {
       orderProducts.push({
         productId: prod._id,
         name: prod.name,
+        productCode: prod.productCode,
         quantity: qty,
         priceUSD: prod.priceUSD,
         priceARS: prod.priceARS,
@@ -86,9 +87,11 @@ export const createOrder = async (req, res) => {
     const lines = orderProducts
       .map(
         (p) =>
-          `• $ ${p.quantity}× ${p.name} — ${formatMoney(
-            p.priceARS * p.quantity
-          )} ($ ${formatMoney(p.priceARS)} ARS c/u)`
+          `• ${p.quantity}× ${p.name} (Código: ${
+            p.productCode
+          }) — ${formatMoney(p.priceARS * p.quantity)} ARS (${formatMoney(
+            p.priceARS
+          )} c/u)`
       )
       .join("\n");
 
