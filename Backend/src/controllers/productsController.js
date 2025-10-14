@@ -2,7 +2,8 @@ import productModel from "../services/models/productModel.js";
 import Config from "../services/models/configModel.js";
 
 export async function createProduct(req, res) {
-  const { name, description, priceUSD, category, productCode } = req.body;
+  const { name, description, priceUSD, category, subcategory, productCode } =
+    req.body;
   const image = req.file ? req.file.secure_url || req.file.path : null;
   if (!name || !description || !priceUSD || !category || !productCode) {
     return res.status(400).json({ message: "All fields are required" });
@@ -13,6 +14,7 @@ export async function createProduct(req, res) {
       description,
       priceUSD: parseFloat(priceUSD),
       category,
+      subcategory,
       image,
       productCode,
     });
@@ -45,6 +47,7 @@ export const updateProduct = async (req, res) => {
       productCode: req.body.productCode,
       priceUSD: parseFloat(req.body.priceUSD),
       category: req.body.category,
+      subcategory: req.body.subcategory,
     };
 
     updateData.priceARS = updateData.priceUSD * exchangeRate;
@@ -106,6 +109,7 @@ export const getProductsByCategory = async (req, res) => {
   try {
     const {
       category,
+      subcategory,
       search,
       minPrice,
       maxPrice,
@@ -119,6 +123,9 @@ export const getProductsByCategory = async (req, res) => {
 
     if (category) {
       filter.category = category;
+    }
+    if (subcategory) {
+      filter.subcategory = subcategory;
     }
 
     if (search) {
@@ -236,11 +243,55 @@ export const getProductByCodeAdmin = async (req, res) => {
     });
   }
 };
-
+// controllers/productsController.js
 export const getProductsAdmin = async (req, res) => {
   try {
-    const products = await productModel.find().lean();
-    res.status(200).json(products);
+    const {
+      search = "",
+      page = 1,
+      limit = 20,
+      category,
+      subcategory,
+      sort, // ej: "createdAt:desc" o "name:asc"
+      active, // opcional: "true"/"false"
+    } = req.query;
+
+    const filter = {};
+    if (search) {
+      const term = new RegExp(search.trim(), "i");
+      filter.$or = [{ name: term }, { productCode: term }];
+    }
+    if (category) filter.category = category;
+    if (subcategory) filter.subcategory = subcategory;
+    if (active === "true") filter.active = true;
+    if (active === "false") filter.active = false;
+
+    let sortOption = {};
+    if (sort) {
+      const [field, order] = sort.split(":");
+      sortOption[field] = order === "desc" ? -1 : 1;
+    } else {
+      sortOption = { createdAt: -1 };
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [products, total] = await Promise.all([
+      productModel
+        .find(filter)
+        .sort(sortOption)
+        .skip(Number(skip))
+        .limit(Number(limit))
+        .lean(),
+      productModel.countDocuments(filter),
+    ]);
+
+    res.json({
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit || 1)),
+      products,
+    });
   } catch (error) {
     res.status(500).json({
       message: "Error obteniendo productos (admin)",
@@ -256,6 +307,37 @@ export const getProductById = async (id) => {
   } catch (error) {
     res.status(500).json({
       message: "Error buscando producto por ID",
+      error: error.message,
+    });
+  }
+};
+
+export const getCategoriesMeta = async (req, res) => {
+  try {
+    const onlyActive = req.query.active !== "false"; // por defecto solo activos
+    const match = onlyActive ? { active: true } : {};
+
+    const docs = await productModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: "$category",
+          subs: { $addToSet: "$subcategory" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Normalizamos la salida a { category, subcategories[] }
+    const payload = docs.map((d) => ({
+      category: d._id,
+      subcategories: (d.subs || []).filter(Boolean).sort(),
+    }));
+
+    res.json(payload);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error obteniendo categorías y subcategorías",
       error: error.message,
     });
   }

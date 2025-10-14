@@ -11,6 +11,7 @@ import AdminProducts from "./pages/AdminProducts.jsx";
 import AdminConfig from "./pages/AdminConfig.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminOrders from "./components/AdminOrders.jsx";
+import AdminBanners from "./pages/AdminBanners.jsx";
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
           {/* /admin/dashboard */}
           <Route path="products" element={<AdminProducts />} />{" "}
           {/* /admin/products */}
+          <Route path="banners" element={<AdminBanners />} />{" "}
           <Route path="config" element={<AdminConfig />} />{" "}
           {/* /admin/config */}
         </Route>
