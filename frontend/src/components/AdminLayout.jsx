@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 function AdminLayout() {
   const navigate = useNavigate();
@@ -8,6 +8,10 @@ function AdminLayout() {
     navigate("/admin/login");
   };
 
+  const linkBase =
+    "block px-3 py-2 rounded hover:bg-white/10 transition-colors";
+  const linkActive = "bg-white/15 font-semibold underline";
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar */}
@@ -15,20 +19,58 @@ function AdminLayout() {
         <div className="p-6 text-2xl font-bold border-b border-white/20">
           A&P Admin
         </div>
-        <nav className="flex-1 p-4 space-y-3">
-          <Link to="/admin/dashboard" className="block hover:underline">
+
+        <nav className="flex-1 p-4 space-y-1">
+          {/* Si tenés dashboard real, descomenta este bloque
+          <NavLink
+            to="/admin/dashboard"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? linkActive : ""}`
+            }
+          >
+            🧭 Dashboard
+          </NavLink>
+          */}
+          <NavLink
+            to="/admin/products"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? linkActive : ""}`
+            }
+          >
             📦 Productos
-          </Link>
-          <Link to="/admin/config" className="block hover:underline">
-            ⚙️ Configuración
-          </Link>
-          <Link to="/admin/orders" className="hover:underline">
+          </NavLink>
+
+          <NavLink
+            to="/admin/banners"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? linkActive : ""}`
+            }
+          >
+            🖼️ Banners / Slider
+          </NavLink>
+
+          <NavLink
+            to="/admin/orders"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? linkActive : ""}`
+            }
+          >
             📋 Órdenes
-          </Link>
+          </NavLink>
+
+          <NavLink
+            to="/admin/config"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? linkActive : ""}`
+            }
+          >
+            ⚙️Configuración
+          </NavLink>
         </nav>
+
         <button
           onClick={logout}
-          className="p-4 bg-red-600 hover:bg-red-700 text-white"
+          className="m-4 mt-2 rounded bg-red-600 hover:bg-red-700 text-white px-4 py-2"
         >
           Cerrar sesión
         </button>

@@ -19,6 +19,12 @@ function ProductDetail() {
       .finally(() => setLoading(false));
   }, [productCode]);
 
+  const calcCuota6 = (priceARS) => {
+    if (!priceARS || isNaN(priceARS)) return null;
+    const cuota = (priceARS * 1.27) / 6;
+    return Math.round(cuota);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-ayp">
@@ -59,6 +65,15 @@ function ProductDetail() {
             {product.priceARS && (
               <p className="text-3xl font-bold text-blue-700 mb-8">
                 {product.priceARS.toLocaleString("es-AR")} ARS
+              </p>
+            )}
+            {product.priceARS && (
+              <p className="text-[11px] sm:text-xs text-gray-500 text-center -mt-2 mb-3">
+                ó 6 cuotas de{" "}
+                <strong className="font-semibold text-gray-600">
+                  ${calcCuota6(product.priceARS)?.toLocaleString("es-AR")}
+                </strong>{" "}
+                <span className="whitespace-nowrap"></span>
               </p>
             )}
           </div>

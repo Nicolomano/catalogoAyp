@@ -9,6 +9,7 @@ import {
   toggleProduct,
   getProductsAdmin,
   getProductByCodeAdmin,
+  getCategoriesMeta,
 } from "../controllers/productsController.js";
 const productRouter = express.Router();
 import { protect } from "../middlewares/authMiddleware.js";
@@ -18,9 +19,11 @@ import uploadCloud from "../middlewares/multer.js";
 productRouter.post("/upload", uploadCloud.single("image"), uploadImage);
 
 //public
+productRouter.get("/meta/categories", getCategoriesMeta);
 productRouter.get("/", getProductsByCategory);
-productRouter.get("/:category", getProductsByCategory);
 productRouter.get("/code/:productCode", getProductByCode);
+productRouter.get("/:category", getProductsByCategory);
+
 //productRouter.get("/:id", getProductByCode); // soporte para id directo
 
 //admin

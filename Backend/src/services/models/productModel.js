@@ -8,6 +8,7 @@ const productSchema = new mongoose.Schema({
   priceUSD: Number,
   priceARS: Number,
   category: String,
+  subcategory: { type: String },
   image: String,
   productCode: {
     type: String,
@@ -26,6 +27,9 @@ productSchema.pre("save", async function (next) {
   this.priceARS = this.priceUSD * exchangeRate;
   next();
 });
+// services/models/productModel.js (después del schema)
+productSchema.index({ name: "text", productCode: "text" });
+productSchema.index({ category: 1, subcategory: 1 });
 
 const productModel = mongoose.model(productsCollection, productSchema);
 export default productModel;

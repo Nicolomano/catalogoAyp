@@ -9,6 +9,10 @@ function Layout() {
   const token = localStorage.getItem("token");
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const clearAndGoHome = () => {
+    if (window.location.search) window.history.pushState({}, "", "/");
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-ayp text-white">
       {/* 🔹 Navbar */}
@@ -26,6 +30,7 @@ function Layout() {
           <nav className="hidden md:flex items-center space-x-6">
             <NavLink
               to="/"
+              onClick={clearAndGoHome}
               className={({ isActive }) =>
                 `hover:text-blue-200 ${isActive ? "font-bold underline" : ""}`
               }
