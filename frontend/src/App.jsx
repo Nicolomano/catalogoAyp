@@ -3,6 +3,7 @@ import Layout from "./components/Layout.jsx";
 import Catalogo from "./pages/Catalogo.jsx";
 import ProductDetail from "./pages/ProductDetail.jsx";
 import Cart from "./pages/Cart.jsx";
+import Contacto from "./pages/Contacto.jsx";
 
 import AdminLogin from "./pages/AdminLogin.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
@@ -22,10 +23,8 @@ function App() {
           <Route index element={<Catalogo />} />
           <Route path="product/:productCode" element={<ProductDetail />} />
           <Route path="cart" element={<Cart />} />
-          <Route
-            path="contacto"
-            element={<div>📞 Próximamente contacto</div>}
-          />
+
+          <Route path="/contacto" element={<Contacto />} />
         </Route>
 
         {/* Admin: login público */}

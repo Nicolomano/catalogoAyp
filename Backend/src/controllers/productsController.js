@@ -2,8 +2,16 @@ import productModel from "../services/models/productModel.js";
 import Config from "../services/models/configModel.js";
 
 export async function createProduct(req, res) {
-  const { name, description, priceUSD, category, subcategory, productCode } =
-    req.body;
+  const {
+    name,
+    description,
+    priceUSD,
+    priceARS,
+    fixedInArs,
+    category,
+    subcategory,
+    productCode,
+  } = req.body;
   const image = req.file ? req.file.secure_url || req.file.path : null;
   if (!name || !description || !priceUSD || !category || !productCode) {
     return res.status(400).json({ message: "All fields are required" });
@@ -12,7 +20,9 @@ export async function createProduct(req, res) {
     const newProduct = new productModel({
       name,
       description,
-      priceUSD: parseFloat(priceUSD),
+      priceUSD: priceUSD !== undefined ? parseFloat(priceUSD) : undefined,
+      priceARS: priceARS !== undefined ? parseFloat(priceARS) : undefined,
+      fixedInArs: Boolean(fixedInArs),
       category,
       subcategory,
       image,
@@ -39,23 +49,39 @@ export async function uploadImage(req, res) {
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const config = await Config.findOne();
-    const exchangeRate = config ? config.exchangeRate : 1;
 
     const updateData = {
       name: req.body.name,
       productCode: req.body.productCode,
-      priceUSD: parseFloat(req.body.priceUSD),
+      priceUSD:
+        req.body.priceUSD !== undefined
+          ? parseFloat(req.body.priceUSD)
+          : undefined,
+      priceARS:
+        req.body.priceARS !== undefined
+          ? parseFloat(req.body.priceARS)
+          : undefined,
+      fixedInARS:
+        req.body.fixedInARS !== undefined
+          ? Boolean(req.body.fixedInARS)
+          : undefined,
       category: req.body.category,
       subcategory: req.body.subcategory,
     };
 
-    updateData.priceARS = updateData.priceUSD * exchangeRate;
     // Si viene imagen de Cloudinary
     if (req.file && req.file.path) {
       updateData.image = req.file.path;
     }
 
+    // Si NO es fijo en ARS, forzar recálculo en hook de Mongoose con findOneAndUpdate+runValidators:false no dispara pre('save').
+    // Opción segura: calcular aquí solo cuando fixedInARS es false y priceUSD cambió.
+    if (updateData.fixedInARS === false && updateData.priceUSD !== undefined) {
+      const cfg = await Config.findOne();
+      const rate = cfg ? cfg.exchangeRate : 1;
+      updateData.priceARS =
+        Number(updateData.priceUSD || 0) * Number(rate || 1);
+    }
     const updated = await productModel.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,

@@ -19,7 +19,7 @@ function Catalogo() {
   const [subcategories, setSubcategories] = useState([]);
   const [category, setCategory] = useState("all");
   const [subcategory, setSubcategory] = useState("all");
-  const [sort, setSort] = useState("name:asc");
+  const [sort, setSort] = useState("createdAt:desc");
 
   const location = useLocation();
   const navigate = useNavigate();

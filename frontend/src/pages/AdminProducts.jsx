@@ -232,6 +232,8 @@ function AdminProducts() {
                 name: "",
                 description: "",
                 priceUSD: 0,
+                priceARS: "",
+                fixedInARS: false,
                 category: "",
                 subcategory: "",
                 productCode: "",
@@ -260,6 +262,7 @@ function AdminProducts() {
               <th className="p-3 text-left">Categoría</th>
               <th className="p-3 text-left">Subcategoría</th>
               <th className="p-3 text-left">Precio (ARS)</th>
+              <th className="p-3 text-left">Precio (USD)</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3">Acciones</th>
             </tr>
@@ -279,14 +282,33 @@ function AdminProducts() {
                   )}
                 </td>
                 <td className="p-3">{p.productCode}</td>
-                <td className="p-3">{p.name}</td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <span>{p.name}</span>
+                    {p.fixedInARS && (
+                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                        Fijo en ARS
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="p-3">{p.category || "-"}</td>
                 <td className="p-3">{p.subcategory || "-"}</td>
                 <td className="p-3">
-                  {p.priceARS?.toLocaleString("es-AR", {
-                    style: "currency",
-                    currency: "ARS",
-                  })}
+                  {p.priceARS !== undefined && p.priceARS !== null
+                    ? Number(p.priceARS).toLocaleString("es-AR", {
+                        style: "currency",
+                        currency: "ARS",
+                      })
+                    : "-"}
+                </td>
+                <td className="p-3">
+                  {p.priceUSD !== undefined && p.priceUSD !== null
+                    ? Number(p.priceUSD).toLocaleString("es-AR", {
+                        style: "currency",
+                        currency: "USD",
+                      })
+                    : "-"}
                 </td>
                 <td className="p-3">
                   {p.active ? (
@@ -320,7 +342,7 @@ function AdminProducts() {
 
             {products.length === 0 && !loading && (
               <tr>
-                <td colSpan="8" className="p-6 text-center text-gray-500">
+                <td colSpan="9" className="p-6 text-center text-gray-500">
                   No hay resultados para los filtros aplicados.
                 </td>
               </tr>
@@ -332,7 +354,7 @@ function AdminProducts() {
       {/* Modal de edición / creación */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-[480px] max-w-[95vw]">
+          <div className="bg-white p-6 rounded shadow w-[520px] max-w-[95vw]">
             <h3 className="text-lg font-bold mb-4">
               {editingProduct._id ? "Editar producto" : "Nuevo producto"}
             </h3>
@@ -349,12 +371,46 @@ function AdminProducts() {
                   formData.append("name", editingProduct.name);
                   formData.append("description", editingProduct.description);
                   formData.append("productCode", editingProduct.productCode);
-                  formData.append("priceUSD", editingProduct.priceUSD);
+
+                  // Dual pricing: solo enviar lo que corresponde
+                  if (editingProduct.fixedInARS) {
+                    // fijo en ARS → enviar priceARS (requerido visualmente) y opcionalmente priceUSD si lo usás de referencia
+                    if (
+                      editingProduct.priceARS !== "" &&
+                      editingProduct.priceARS !== null &&
+                      editingProduct.priceARS !== undefined
+                    ) {
+                      formData.append("priceARS", editingProduct.priceARS);
+                    }
+                    // priceUSD opcional (si querés almacenar también el USD referencial)
+                    if (
+                      editingProduct.priceUSD !== "" &&
+                      editingProduct.priceUSD !== null &&
+                      editingProduct.priceUSD !== undefined
+                    ) {
+                      formData.append("priceUSD", editingProduct.priceUSD);
+                    }
+                  } else {
+                    // dinámico por dólar → enviar priceUSD (requerido) y NO enviar priceARS (lo calcula backend)
+                    if (
+                      editingProduct.priceUSD !== "" &&
+                      editingProduct.priceUSD !== null &&
+                      editingProduct.priceUSD !== undefined
+                    ) {
+                      formData.append("priceUSD", editingProduct.priceUSD);
+                    }
+                  }
+
+                  formData.append(
+                    "fixedInARS",
+                    editingProduct.fixedInARS ? "true" : "false"
+                  );
                   formData.append("category", norm(editingProduct.category));
                   formData.append(
                     "subcategory",
                     norm(editingProduct.subcategory)
                   );
+
                   if (editingProduct.imageFile) {
                     formData.append("image", editingProduct.imageFile);
                   }
@@ -445,24 +501,105 @@ function AdminProducts() {
                 />
               </label>
 
-              {/* Precio USD */}
-              <label className="block mb-2">
-                Precio (USD)
+              {/* Toggle: Precio fijo en ARS */}
+              <label className="flex items-center gap-2 mb-2">
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editingProduct.priceUSD ?? ""}
+                  type="checkbox"
+                  checked={!!editingProduct.fixedInARS}
                   onChange={(e) =>
                     setEditingProduct((prev) => ({
                       ...prev,
-                      priceUSD: e.target.value,
+                      fixedInARS: e.target.checked,
                     }))
                   }
-                  className="border w-full p-2 rounded mt-1"
-                  required
                 />
+                <span className="font-medium">Precio fijo en ARS</span>
               </label>
+
+              {/* Precio (según modo) */}
+              {editingProduct.fixedInARS ? (
+                <>
+                  {/* ARS requerido */}
+                  <label className="block mb-2">
+                    Precio (ARS)
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={
+                        editingProduct.priceARS === null ||
+                        editingProduct.priceARS === undefined
+                          ? ""
+                          : editingProduct.priceARS
+                      }
+                      onChange={(e) =>
+                        setEditingProduct((prev) => ({
+                          ...prev,
+                          priceARS: e.target.value,
+                        }))
+                      }
+                      className="border w-full p-2 rounded mt-1"
+                      required
+                    />
+                  </label>
+
+                  {/* USD opcional (referencia) */}
+                  <label className="block mb-2">
+                    Precio (USD) (opcional)
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={
+                        editingProduct.priceUSD === null ||
+                        editingProduct.priceUSD === undefined
+                          ? ""
+                          : editingProduct.priceUSD
+                      }
+                      onChange={(e) =>
+                        setEditingProduct((prev) => ({
+                          ...prev,
+                          priceUSD: e.target.value,
+                        }))
+                      }
+                      className="border w-full p-2 rounded mt-1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Si lo dejás vacío, el producto solo tendrá precio en ARS.
+                    </p>
+                  </label>
+                </>
+              ) : (
+                <>
+                  {/* USD requerido */}
+                  <label className="block mb-2">
+                    Precio (USD)
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={
+                        editingProduct.priceUSD === null ||
+                        editingProduct.priceUSD === undefined
+                          ? ""
+                          : editingProduct.priceUSD
+                      }
+                      onChange={(e) =>
+                        setEditingProduct((prev) => ({
+                          ...prev,
+                          priceUSD: e.target.value,
+                        }))
+                      }
+                      className="border w-full p-2 rounded mt-1"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      El precio en ARS se recalcula automáticamente según la
+                      cotización vigente al guardar.
+                    </p>
+                  </label>
+                </>
+              )}
 
               {/* Categoría (input + datalist) */}
               <label className="block mb-2">
