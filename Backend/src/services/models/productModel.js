@@ -2,25 +2,32 @@ import mongoose from "mongoose";
 import configModel from "./configModel.js";
 
 const productsCollection = "products";
-const productSchema = new mongoose.Schema({
-  name: String,
-  description: String,
-  priceUSD: Number,
-  priceARS: Number,
-  category: String,
-  subcategory: { type: String },
-  image: String,
-  productCode: {
-    type: String,
-    unique: true,
-    required: true,
+const productSchema = new mongoose.Schema(
+  {
+    name: String,
+    description: String,
+    priceUSD: Number,
+    priceARS: Number,
+    category: String,
+    subcategory: { type: String },
+    image: String,
+    productCode: {
+      type: String,
+      unique: true,
+      required: true,
+    },
+    active: { type: Boolean, default: true },
+    views: { type: Number, default: 0 },
+    soldCount: { type: Number, default: 0 },
+    fixedInARS: { type: Boolean, default: false },
   },
-  active: { type: Boolean, default: true },
-  views: { type: Number, default: 0 },
-  soldCount: { type: Number, default: 0 },
-});
+  { timestamps: true }
+);
+
+productSchema.index({ createdAt: -1 });
 
 productSchema.pre("save", async function (next) {
+  if (this.fixedInARS === true) return next(); //respeta el precio fijo en ARS
   const Config = configModel;
   const config = await Config.findOne();
   const exchangeRate = config ? config.exchangeRate : 1;
