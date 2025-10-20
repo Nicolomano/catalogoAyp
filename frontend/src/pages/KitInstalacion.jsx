@@ -236,9 +236,7 @@ export default function KitInstalacion() {
               </div>
               <div className="flex gap-2">
                 <a
-                  href={`https://wa.me/${(
-                    import.meta.env.VITE_PHONE_E164 || "+54911XXXXXXXX"
-                  ).replace(/\D/g, "")}?text=${waText}`}
+                  href={`https://wa.me/5491168815837?text=${waText}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex-1 text-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
