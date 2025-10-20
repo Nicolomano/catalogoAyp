@@ -58,3 +58,25 @@ export async function getExchangeRate(req, res) {
       .json({ message: "Error fetching exchange rate", error: error.message });
   }
 }
+
+export const getInstallKit = async (req, res) => {
+  const cfg = await configModel.findOne({}, { installKit: 1 });
+  res.json(cfg?.installKit || { items: [] });
+};
+
+export const updateInstallKit = async (req, res) => {
+  try {
+    const { installKit } = req.body;
+    const cfg = await configModel.findOneAndUpdate(
+      {},
+      { installKit },
+      { new: true, upsert: true }
+    );
+    res.json(cfg.installKit);
+  } catch (err) {
+    res.status(500).json({
+      message: "Error actualizando configuración",
+      error: err.message,
+    });
+  }
+};

@@ -48,6 +48,9 @@ function AdminLayout() {
           >
             🖼️ Banners / Slider
           </NavLink>
+          <NavLink to="/admin/install-kit" className="...">
+            🛠Kit de Instalación
+          </NavLink>
 
           <NavLink
             to="/admin/orders"
