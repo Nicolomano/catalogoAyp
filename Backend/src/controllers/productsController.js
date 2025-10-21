@@ -50,38 +50,59 @@ export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Leer el estado actual para decidir cuando no vienen campos
+    const current = await productModel.findById(id).lean();
+    if (!current)
+      return res.status(404).json({ message: "Producto no encontrado" });
+
+    // Normalizar boolean que llega como string en multipart/form-data
+    const fixedFlag =
+      req.body.fixedInARS !== undefined
+        ? String(req.body.fixedInARS).toLowerCase() === "true"
+        : undefined;
+
     const updateData = {
       name: req.body.name,
       productCode: req.body.productCode,
       priceUSD:
-        req.body.priceUSD !== undefined
-          ? parseFloat(req.body.priceUSD)
+        req.body.priceUSD !== undefined && req.body.priceUSD !== ""
+          ? Number(req.body.priceUSD)
           : undefined,
       priceARS:
-        req.body.priceARS !== undefined
-          ? parseFloat(req.body.priceARS)
+        req.body.priceARS !== undefined && req.body.priceARS !== ""
+          ? Number(req.body.priceARS)
           : undefined,
-      fixedInARS:
-        req.body.fixedInARS !== undefined
-          ? Boolean(req.body.fixedInARS)
-          : undefined,
+      // solo setear si vino; si no, conservar el valor actual
+      fixedInARS: fixedFlag !== undefined ? fixedFlag : undefined,
       category: req.body.category,
       subcategory: req.body.subcategory,
     };
 
-    // Si viene imagen de Cloudinary
-    if (req.file && req.file.path) {
+    if (req.file?.path) {
       updateData.image = req.file.path;
     }
 
-    // Si NO es fijo en ARS, forzar recálculo en hook de Mongoose con findOneAndUpdate+runValidators:false no dispara pre('save').
-    // Opción segura: calcular aquí solo cuando fixedInARS es false y priceUSD cambió.
-    if (updateData.fixedInARS === false && updateData.priceUSD !== undefined) {
+    // Decidir el valor efectivo de fixedInARS para la lógica de precios
+    const effectiveFixed =
+      fixedFlag !== undefined ? fixedFlag : current.fixedInARS;
+
+    // Si NO es fijo y vino un USD nuevo → recalcular ARS
+    if (effectiveFixed === false && updateData.priceUSD != null) {
       const cfg = await Config.findOne();
       const rate = cfg ? cfg.exchangeRate : 1;
-      updateData.priceARS =
-        Number(updateData.priceUSD || 0) * Number(rate || 1);
+      updateData.priceARS = Number(updateData.priceUSD) * Number(rate || 1);
     }
+
+    // Si ES fijo y NO vino un ARS nuevo → no tocar el ARS existente
+    if (effectiveFixed === true && updateData.priceARS === undefined) {
+      delete updateData.priceARS;
+    }
+
+    // Evitar enviar undefineds en el update
+    Object.keys(updateData).forEach(
+      (k) => updateData[k] === undefined && delete updateData[k]
+    );
+
     const updated = await productModel.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
@@ -90,13 +111,11 @@ export const updateProduct = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ message: "Producto no encontrado" });
     }
-
     res.json(updated);
   } catch (error) {
-    res.status(500).json({
-      message: "Error actualizando producto",
-      error: error.message,
-    });
+    res
+      .status(500)
+      .json({ message: "Error actualizando producto", error: error.message });
   }
 };
 

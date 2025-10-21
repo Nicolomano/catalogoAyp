@@ -13,6 +13,8 @@ import AdminConfig from "./pages/AdminConfig.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminOrders from "./components/AdminOrders.jsx";
 import AdminBanners from "./pages/AdminBanners.jsx";
+import KitInstalacion from "./pages/KitInstalacion.jsx";
+import AdminInstallKit from "./pages/AdminInstallKit.jsx";
 
 function App() {
   return (
@@ -23,8 +25,9 @@ function App() {
           <Route index element={<Catalogo />} />
           <Route path="product/:productCode" element={<ProductDetail />} />
           <Route path="cart" element={<Cart />} />
+          <Route path="kit-instalacion" element={<KitInstalacion />} />
 
-          <Route path="/contacto" element={<Contacto />} />
+          <Route path="contacto" element={<Contacto />} />
         </Route>
 
         {/* Admin: login público */}
@@ -47,6 +50,7 @@ function App() {
           {/* /admin/products */}
           <Route path="banners" element={<AdminBanners />} />{" "}
           <Route path="config" element={<AdminConfig />} />{" "}
+          <Route path="install-kit" element={<AdminInstallKit />} />
           {/* /admin/config */}
         </Route>
       </Routes>

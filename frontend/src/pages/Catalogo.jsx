@@ -170,7 +170,7 @@ function Catalogo() {
           placeholder="Buscar por nombre o código..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full md:w-[36rem] px-4 py-2 rounded-lg border border-gray-300 text-black"
+          className="search-input w-full rounded-md px-3 py-2 outline-none"
           aria-label="Buscar por nombre o código"
         />
 
@@ -185,7 +185,7 @@ function Catalogo() {
             setSubcategory("all");
             updateUrlForCategory(selectedCat);
           }}
-          className="w-full md:w-64 px-4 py-2 rounded-lg border border-gray-300 text-black"
+          className="search-select w-full rounded-md px-3 py-2 outline-none"
           aria-label="Filtrar por categoría"
         >
           <option value="all">Todas las categorías</option>
@@ -205,7 +205,7 @@ function Catalogo() {
               setSubcategory(value);
               updateUrlForSubcategory(value);
             }}
-            className="w-full md:w-64 px-4 py-2 rounded-lg border border-gray-300 text-black"
+            className="search-select w-full rounded-md px-3 py-2 outline-none"
             aria-label="Filtrar por subcategoría"
           >
             <option value="all">Todas las subcategorías</option>
@@ -221,7 +221,7 @@ function Catalogo() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value)}
-          className="w-full md:w-64 px-4 py-2 rounded-lg border border-gray-300 text-black"
+          className="search-select w-full rounded-md px-3 py-2 outline-none"
           aria-label="Ordenar"
         >
           <option value="name:asc">Orden alfabético (A-Z)</option>

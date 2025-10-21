@@ -38,6 +38,15 @@ function Layout() {
               Catálogo
             </NavLink>
             <NavLink
+              to="/kit-instalacion"
+              className={({ isActive }) =>
+                `hover:text-blue-200 ${isActive ? "font-bold underline" : ""}`
+              }
+            >
+              Kit de Instalación
+            </NavLink>
+
+            <NavLink
               to="/contacto"
               className={({ isActive }) =>
                 `hover:text-blue-200 ${isActive ? "font-bold underline" : ""}`
