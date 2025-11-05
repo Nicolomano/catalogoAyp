@@ -7,7 +7,6 @@ import HeroCarousel from "../components/HeroCarousel.jsx";
 
 function Catalogo() {
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const { addToCart } = useCart();
@@ -19,7 +18,7 @@ function Catalogo() {
   const [subcategories, setSubcategories] = useState([]);
   const [category, setCategory] = useState("all");
   const [subcategory, setSubcategory] = useState("all");
-  const [sort, setSort] = useState("createdAt:desc");
+  const [sort, setSort] = useState("soldCount:desc");
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -28,24 +27,7 @@ function Catalogo() {
     [location.search]
   );
 
-  // 🔹 Cargar productos (servidor ordena; el resto de filtros son client-side)
-  useEffect(() => {
-    setLoading(true);
-    API.get(`/products?limit=0&sort=${sort}`)
-      .then((res) => {
-        const prods = Array.isArray(res.data.products)
-          ? res.data.products
-          : Array.isArray(res.data)
-          ? res.data
-          : [];
-        setProducts(prods);
-        setFilteredProducts(prods);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
-  }, [sort]);
-
-  // 🔹 Cargar categorías y subcategorías (normalizado)
+  /* 🔹 Cargar categorías y subcategorías */
   useEffect(() => {
     API.get("/products/meta/categories")
       .then((res) => {
@@ -59,7 +41,7 @@ function Catalogo() {
       .catch((err) => console.error("Error cargando categorías:", err));
   }, []);
 
-  // 🔹 Sincronizar filtros DESDE la URL (aplica o resetea)
+  /* 🔹 Sincronizar filtros DESDE la URL */
   useEffect(() => {
     if (!categories.length) return;
 
@@ -79,63 +61,60 @@ function Catalogo() {
         return;
       }
     }
-    // No hay ?cat o no coincide: reset total
+
     setCategory("all");
     setSubcategories([]);
     setSubcategory("all");
   }, [categories, params]);
 
-  // 🔹 Filtrar productos (memo)
-  const filtered = useMemo(() => {
-    let result = [...products];
-
-    if (category !== "all")
-      result = result.filter((p) => p.category === category);
-    if (subcategory !== "all")
-      result = result.filter((p) => p.subcategory === subcategory);
-
-    if (search.trim() !== "") {
-      const term = search.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(term) ||
-          p.productCode.toLowerCase().includes(term)
-      );
-    }
-    return result;
-  }, [search, category, subcategory, products]);
-
+  /* 🔹 Obtener productos filtrados desde el backend */
   useEffect(() => {
-    setFilteredProducts(filtered);
-  }, [filtered]);
+    setLoading(true);
 
-  // 🔹 Helpers cantidad
+    const query = new URLSearchParams();
+    query.set("limit", 0);
+    query.set("sort", sort);
+
+    if (category !== "all") query.set("category", category);
+    if (subcategory !== "all") query.set("subcategory", subcategory);
+    if (search.trim()) query.set("search", search.trim());
+
+    API.get(`/products?${query.toString()}`)
+      .then((res) => {
+        const data = res.data?.products || [];
+        setProducts(data);
+      })
+      .catch((err) => console.error("Error cargando productos:", err))
+      .finally(() => setLoading(false));
+  }, [category, subcategory, sort, search]);
+
+  /* 🔹 Helpers cantidad */
   const handleIncrease = (code) =>
     setQuantities((prev) => ({ ...prev, [code]: (prev[code] || 1) + 1 }));
+
   const handleDecrease = (code) =>
     setQuantities((prev) => {
       const newVal = (prev[code] || 1) - 1;
       return { ...prev, [code]: newVal > 1 ? newVal : 1 };
     });
 
-  // 🔹 Precio en 6 cuotas con +27%
+  /* 🔹 Precio en 6 cuotas con +27% */
   const calcCuota6 = (priceARS) => {
     if (!priceARS || isNaN(priceARS)) return null;
     const cuota = (priceARS * 1.27) / 6;
     return Math.round(cuota);
   };
 
-  // 🔹 Sincronizar filtros HACIA la URL
+  /* 🔹 Sincronizar filtros HACIA la URL */
   const updateUrlForCategory = (selectedCat) => {
     const u = new URL(window.location.href);
     if (selectedCat === "all") {
       u.searchParams.delete("cat");
       u.searchParams.delete("sub");
-      navigate(`${u.pathname}${u.search}`, { replace: true });
-      return;
+    } else {
+      u.searchParams.set("cat", selectedCat);
+      u.searchParams.delete("sub");
     }
-    u.searchParams.set("cat", selectedCat);
-    u.searchParams.delete("sub");
     navigate(`${u.pathname}${u.search}`, { replace: true });
   };
 
@@ -149,6 +128,7 @@ function Catalogo() {
     navigate(`${u.pathname}${u.search}`, { replace: true });
   };
 
+  /* 🔹 Loader */
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-ayp">
@@ -234,14 +214,13 @@ function Catalogo() {
       </div>
 
       {/* 🔹 Productos */}
-      {filteredProducts.length === 0 ? (
+      {products.length === 0 ? (
         <p className="text-white text-center text-lg">
           No se encontraron productos.
         </p>
       ) : (
-        // 2 columnas base, 3 en sm, 4 en md. Gaps adaptativos.
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-          {filteredProducts.map((p) => {
+          {products.map((p) => {
             const quantity = quantities[p.productCode] || 1;
             return (
               <div
@@ -252,7 +231,6 @@ function Catalogo() {
                   to={`/product/${p.productCode}`}
                   className="flex flex-col items-center mb-3 sm:mb-4"
                 >
-                  {/* Imagen consistente en grilla (cuadrada) */}
                   <div className="w-full aspect-square flex items-center justify-center mb-3">
                     <img
                       src={p.image}
@@ -260,7 +238,6 @@ function Catalogo() {
                       className="object-contain max-h-full"
                       loading="lazy"
                       decoding="async"
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                     />
                   </div>
                   <h2 className="text-sm sm:text-base font-semibold text-gray-800 text-center line-clamp-2 min-h-[2.5rem]">
@@ -273,28 +250,24 @@ function Catalogo() {
                   )}
                 </Link>
 
-                {/* Precio contado */}
                 {p.priceARS && (
-                  <p className="text-base sm:text-lg font-bold text-blue-700 mb-3 text-center">
-                    ${p.priceARS.toLocaleString("es-AR")}
-                  </p>
-                )}
-                {/* Precio en cuotas */}
-                {p.priceARS && (
-                  <p className="text-[11px] sm:text-xs text-gray-500 text-center -mt-2 mb-3">
-                    ó 6 cuotas de{" "}
-                    <strong className="font-semibold text-gray-600">
-                      ${calcCuota6(p.priceARS)?.toLocaleString("es-AR")}
-                    </strong>
-                  </p>
+                  <>
+                    <p className="text-base sm:text-lg font-bold text-blue-700 mb-3 text-center">
+                      ${p.priceARS.toLocaleString("es-AR")}
+                    </p>
+                    <p className="text-[11px] sm:text-xs text-gray-500 text-center -mt-2 mb-3">
+                      ó 6 cuotas de{" "}
+                      <strong className="font-semibold text-gray-600">
+                        ${calcCuota6(p.priceARS)?.toLocaleString("es-AR")}
+                      </strong>
+                    </p>
+                  </>
                 )}
 
-                {/* Cantidad */}
                 <div className="flex items-center justify-center gap-2 mb-3">
                   <button
                     onClick={() => handleDecrease(p.productCode)}
                     className="bg-gray-500 hover:bg-gray-600 px-3 py-2 rounded active:scale-95"
-                    aria-label="Disminuir cantidad"
                   >
                     −
                   </button>
@@ -304,13 +277,11 @@ function Catalogo() {
                   <button
                     onClick={() => handleIncrease(p.productCode)}
                     className="bg-gray-500 hover:bg-gray-600 px-3 py-2 rounded active:scale-95"
-                    aria-label="Aumentar cantidad"
                   >
                     +
                   </button>
                 </div>
 
-                {/* Agregar al pedido */}
                 <button
                   onClick={() => {
                     addToCart(p, quantity);

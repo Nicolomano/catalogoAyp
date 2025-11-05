@@ -17,7 +17,7 @@ export default function AdminInstallKit() {
         const res = await API.get("/config/install-kit"); // { items: [...] }
         setKit(res.data || { items: [] });
       } catch (e) {
-        toast.error("No se pudo cargar la configuración");
+        toast.error("No se pudo cargar la configuración", e);
       } finally {
         setLoading(false);
       }

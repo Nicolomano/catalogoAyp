@@ -1,4 +1,21 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { FolderTree } from "lucide-react";
+
+function MenuItem({ to, icon, label }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `flex items-center gap-2 px-4 py-2 rounded-md hover:bg-gray-800 transition-colors ${
+          isActive ? "bg-gray-800 text-white" : "text-gray-300"
+        }`
+      }
+    >
+      {icon}
+      <span>{label}</span>
+    </NavLink>
+  );
+}
 
 function AdminLayout() {
   const navigate = useNavigate();
@@ -51,6 +68,11 @@ function AdminLayout() {
           <NavLink to="/admin/install-kit" className="...">
             🛠Kit de Instalación
           </NavLink>
+          <MenuItem
+            to="/admin/categories"
+            icon={<FolderTree size={18} />}
+            label="Categorías"
+          />
 
           <NavLink
             to="/admin/orders"
@@ -68,6 +90,12 @@ function AdminLayout() {
             }
           >
             ⚙️Configuración
+          </NavLink>
+          <NavLink
+            to="/"
+            className="ml-4 bg-white text-blue-800 px-3 py-1 rounded-md font-semibold hover:bg-blue-100 transition"
+          >
+            catálogo
           </NavLink>
         </nav>
 
