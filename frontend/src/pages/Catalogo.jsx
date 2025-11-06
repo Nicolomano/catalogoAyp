@@ -101,7 +101,7 @@ function Catalogo() {
   /* 🔹 Precio en 6 cuotas con +27% */
   const calcCuota6 = (priceARS) => {
     if (!priceARS || isNaN(priceARS)) return null;
-    const cuota = (priceARS * 1.27) / 6;
+    const cuota = (priceARS * 1.3) / 6;
     return Math.round(cuota);
   };
 
