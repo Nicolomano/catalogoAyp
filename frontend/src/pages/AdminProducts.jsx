@@ -21,39 +21,46 @@ function AdminProducts() {
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
 
-  // ────────────────────────────────────────────────────────────
-  // Cargar categorías + subcategorías
+  /* -------------------- Cargar categorías -------------------- */
   useEffect(() => {
     API.get("/products/meta/categories")
       .then((res) => {
-        // Soporta ambos formatos: strings o objetos {category, subcategories}
         const data = res.data || [];
-        let cats = [];
-        if (data.length && typeof data[0] === "string") {
-          cats = data.map((c) => ({ category: c, subcategories: [] }));
-        } else {
-          cats = data;
-        }
+
+        // 🔹 Normalizar formato
+        const cats = data.map((item) => {
+          if (typeof item === "string") {
+            return { category: item, subcategories: [] };
+          } else if (item.category || item._id) {
+            return {
+              category: item.category || item._id || "",
+              subcategories: Array.isArray(item.subcategories)
+                ? item.subcategories.flat().filter(Boolean)
+                : [],
+            };
+          } else {
+            return { category: "", subcategories: [] };
+          }
+        });
+
         setCategories(cats);
 
-        // Si ya hay una categoría elegida, poblar sus subcategorías
+        // Actualizar subcategorías si hay categoría activa
         if (category !== "all") {
           const found = cats.find((c) => c.category === category);
           setSubcategories(found ? found.subcategories : []);
         }
       })
       .catch((e) => console.error("Error meta categorías:", e));
-  }, []); // una sola vez
+  }, []);
 
-  // Cuando cambia la categoría (filtro de tabla), actualizar subcategorías dependientes
   useEffect(() => {
     const found = categories.find((c) => c.category === category);
     setSubcategories(found ? found.subcategories : []);
     setSubcategory("all");
   }, [category, categories]);
 
-  // ────────────────────────────────────────────────────────────
-  // Debounce para búsqueda
+  /* -------------------- Debounce búsqueda -------------------- */
   const debouncedSearch = useMemo(() => {
     let t;
     return (value, cb) => {
@@ -62,18 +69,7 @@ function AdminProducts() {
     };
   }, []);
 
-  // Opciones para autocompletar en el modal (categoría/subcategoría)
-  const categoryOptions = useMemo(
-    () => categories.map((c) => c.category).filter(Boolean),
-    [categories]
-  );
-  const subcategoryOptions = useMemo(() => {
-    const sel = editingProduct?.category || "";
-    const found = categories.find((c) => c.category === sel);
-    return (found?.subcategories || []).filter(Boolean);
-  }, [categories, editingProduct?.category]);
-
-  // ────────────────────────────────────────────────────────────
+  /* -------------------- Fetch productos -------------------- */
   const fetchProducts = async ({
     searchParam = search,
     categoryParam = category,
@@ -87,7 +83,6 @@ function AdminProducts() {
       if (categoryParam !== "all") params.category = categoryParam;
       if (subcategoryParam !== "all") params.subcategory = subcategoryParam;
       if (sortParam) params.sort = sortParam;
-      // si querés TODO sin paginar, podés enviar limit=0
       params.limit = 0;
 
       const res = await API.get("/products/admin/all", {
@@ -106,19 +101,14 @@ function AdminProducts() {
     }
   };
 
-  // Primera carga
   useEffect(() => {
     fetchProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refetch al cambiar filtros/orden (excepto search, que usa debounce)
   useEffect(() => {
-    fetchProducts({}); // usa los estados actuales
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchProducts({});
   }, [category, subcategory, sort]);
 
-  // ────────────────────────────────────────────────────────────
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearch(value);
@@ -127,6 +117,7 @@ function AdminProducts() {
     });
   };
 
+  /* -------------------- Eliminar / Toggle -------------------- */
   const handleDelete = async (id) => {
     if (!confirm("¿Seguro que quieres eliminar este producto?")) return;
     try {
@@ -159,7 +150,7 @@ function AdminProducts() {
     }
   };
 
-  // ────────────────────────────────────────────────────────────
+  /* -------------------- UI -------------------- */
   return (
     <div className="space-y-6">
       {/* Encabezado y filtros */}
@@ -172,7 +163,6 @@ function AdminProducts() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-3">
-          {/* Búsqueda */}
           <input
             type="text"
             placeholder="Buscar por nombre o código..."
@@ -181,7 +171,6 @@ function AdminProducts() {
             className="border rounded px-3 py-2 md:w-72"
           />
 
-          {/* Categoría (filtro de tabla) */}
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -195,7 +184,6 @@ function AdminProducts() {
             ))}
           </select>
 
-          {/* Subcategoría (filtro de tabla) */}
           <select
             value={subcategory}
             onChange={(e) => setSubcategory(e.target.value)}
@@ -210,7 +198,6 @@ function AdminProducts() {
             ))}
           </select>
 
-          {/* Orden */}
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
@@ -224,7 +211,6 @@ function AdminProducts() {
             <option value="active:desc">Estado (activos primero)</option>
           </select>
 
-          {/* Nuevo producto */}
           <button
             className="bg-ayp text-white px-4 py-2 rounded hover:bg-ayp-dark"
             onClick={() =>
@@ -234,13 +220,24 @@ function AdminProducts() {
                 priceUSD: 0,
                 priceARS: "",
                 fixedInARS: false,
-                category: "",
-                subcategory: "",
+                categories: [],
+                subcategories: [],
                 productCode: "",
               })
             }
           >
             ➕ Nuevo producto
+          </button>
+          <button
+            onClick={() => {
+              window.open(
+                `${API.defaults.baseURL}/products/export/excel`,
+                "_blank"
+              );
+            }}
+            className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
+          >
+            📤 Exportar productos (CSV)
           </button>
         </div>
       </div>
@@ -259,8 +256,8 @@ function AdminProducts() {
               <th className="p-3 text-left">Imagen</th>
               <th className="p-3 text-left">Código</th>
               <th className="p-3 text-left">Nombre</th>
-              <th className="p-3 text-left">Categoría</th>
-              <th className="p-3 text-left">Subcategoría</th>
+              <th className="p-3 text-left">Categorías</th>
+              <th className="p-3 text-left">Subcategorías</th>
               <th className="p-3 text-left">Precio (ARS)</th>
               <th className="p-3 text-left">Precio (USD)</th>
               <th className="p-3 text-left">Estado</th>
@@ -292,10 +289,18 @@ function AdminProducts() {
                     )}
                   </div>
                 </td>
-                <td className="p-3">{p.category || "-"}</td>
-                <td className="p-3">{p.subcategory || "-"}</td>
                 <td className="p-3">
-                  {p.priceARS !== undefined && p.priceARS !== null
+                  {Array.isArray(p.categories) && p.categories.length
+                    ? p.categories.join(", ")
+                    : "-"}
+                </td>
+                <td className="p-3">
+                  {Array.isArray(p.subcategories) && p.subcategories.length
+                    ? p.subcategories.join(", ")
+                    : "-"}
+                </td>
+                <td className="p-3">
+                  {p.priceARS
                     ? Number(p.priceARS).toLocaleString("es-AR", {
                         style: "currency",
                         currency: "ARS",
@@ -303,7 +308,7 @@ function AdminProducts() {
                     : "-"}
                 </td>
                 <td className="p-3">
-                  {p.priceUSD !== undefined && p.priceUSD !== null
+                  {p.priceUSD
                     ? Number(p.priceUSD).toLocaleString("es-AR", {
                         style: "currency",
                         currency: "USD",
@@ -351,7 +356,7 @@ function AdminProducts() {
         </table>
       </div>
 
-      {/* Modal de edición / creación */}
+      {/* Modal */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow w-[520px] max-w-[95vw]">
@@ -364,56 +369,46 @@ function AdminProducts() {
                 e.preventDefault();
                 try {
                   const formData = new FormData();
-
-                  // Normalización suave de espacios
                   const norm = (s) => (s || "").trim().replace(/\s+/g, " ");
+                  formData.append("name", norm(editingProduct.name));
+                  formData.append(
+                    "description",
+                    norm(editingProduct.description)
+                  );
+                  formData.append(
+                    "productCode",
+                    norm(editingProduct.productCode)
+                  );
 
-                  formData.append("name", editingProduct.name);
-                  formData.append("description", editingProduct.description);
-                  formData.append("productCode", editingProduct.productCode);
-
-                  // Dual pricing: solo enviar lo que corresponde
+                  // precios
                   if (editingProduct.fixedInARS) {
-                    // fijo en ARS → enviar priceARS (requerido visualmente) y opcionalmente priceUSD si lo usás de referencia
-                    if (
-                      editingProduct.priceARS !== "" &&
-                      editingProduct.priceARS !== null &&
-                      editingProduct.priceARS !== undefined
-                    ) {
+                    if (editingProduct.priceARS)
                       formData.append("priceARS", editingProduct.priceARS);
-                    }
-                    // priceUSD opcional (si querés almacenar también el USD referencial)
-                    if (
-                      editingProduct.priceUSD !== "" &&
-                      editingProduct.priceUSD !== null &&
-                      editingProduct.priceUSD !== undefined
-                    ) {
+                    if (editingProduct.priceUSD)
                       formData.append("priceUSD", editingProduct.priceUSD);
-                    }
                   } else {
-                    // dinámico por dólar → enviar priceUSD (requerido) y NO enviar priceARS (lo calcula backend)
-                    if (
-                      editingProduct.priceUSD !== "" &&
-                      editingProduct.priceUSD !== null &&
-                      editingProduct.priceUSD !== undefined
-                    ) {
+                    if (editingProduct.priceUSD)
                       formData.append("priceUSD", editingProduct.priceUSD);
-                    }
                   }
-
                   formData.append(
                     "fixedInARS",
                     editingProduct.fixedInARS ? "true" : "false"
                   );
-                  formData.append("category", norm(editingProduct.category));
-                  formData.append(
-                    "subcategory",
-                    norm(editingProduct.subcategory)
-                  );
 
-                  if (editingProduct.imageFile) {
-                    formData.append("image", editingProduct.imageFile);
+                  // múltiples categorías
+                  if (editingProduct.categories?.length) {
+                    editingProduct.categories.forEach((cat) =>
+                      formData.append("categories[]", cat)
+                    );
                   }
+                  if (editingProduct.subcategories?.length) {
+                    editingProduct.subcategories.forEach((sub) =>
+                      formData.append("subcategories[]", sub)
+                    );
+                  }
+
+                  if (editingProduct.imageFile)
+                    formData.append("image", editingProduct.imageFile);
 
                   let res;
                   if (editingProduct._id) {
@@ -451,7 +446,7 @@ function AdminProducts() {
                 }
               }}
             >
-              {/* Nombre */}
+              {/* Campos básicos */}
               <label className="block mb-2">
                 Nombre
                 <input
@@ -468,7 +463,6 @@ function AdminProducts() {
                 />
               </label>
 
-              {/* Descripción */}
               <label className="block mb-2">
                 Descripción
                 <textarea
@@ -484,7 +478,6 @@ function AdminProducts() {
                 />
               </label>
 
-              {/* Código */}
               <label className="block mb-2">
                 Código
                 <input
@@ -501,7 +494,6 @@ function AdminProducts() {
                 />
               </label>
 
-              {/* Toggle: Precio fijo en ARS */}
               <label className="flex items-center gap-2 mb-2">
                 <input
                   type="checkbox"
@@ -516,22 +508,15 @@ function AdminProducts() {
                 <span className="font-medium">Precio fijo en ARS</span>
               </label>
 
-              {/* Precio (según modo) */}
               {editingProduct.fixedInARS ? (
                 <>
-                  {/* ARS requerido */}
                   <label className="block mb-2">
                     Precio (ARS)
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      value={
-                        editingProduct.priceARS === null ||
-                        editingProduct.priceARS === undefined
-                          ? ""
-                          : editingProduct.priceARS
-                      }
+                      value={editingProduct.priceARS || ""}
                       onChange={(e) =>
                         setEditingProduct((prev) => ({
                           ...prev,
@@ -542,20 +527,13 @@ function AdminProducts() {
                       required
                     />
                   </label>
-
-                  {/* USD opcional (referencia) */}
                   <label className="block mb-2">
                     Precio (USD) (opcional)
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      value={
-                        editingProduct.priceUSD === null ||
-                        editingProduct.priceUSD === undefined
-                          ? ""
-                          : editingProduct.priceUSD
-                      }
+                      value={editingProduct.priceUSD || ""}
                       onChange={(e) =>
                         setEditingProduct((prev) => ({
                           ...prev,
@@ -564,95 +542,114 @@ function AdminProducts() {
                       }
                       className="border w-full p-2 rounded mt-1"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Si lo dejás vacío, el producto solo tendrá precio en ARS.
-                    </p>
                   </label>
                 </>
               ) : (
-                <>
-                  {/* USD requerido */}
-                  <label className="block mb-2">
-                    Precio (USD)
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={
-                        editingProduct.priceUSD === null ||
-                        editingProduct.priceUSD === undefined
-                          ? ""
-                          : editingProduct.priceUSD
-                      }
-                      onChange={(e) =>
-                        setEditingProduct((prev) => ({
-                          ...prev,
-                          priceUSD: e.target.value,
-                        }))
-                      }
-                      className="border w-full p-2 rounded mt-1"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      El precio en ARS se recalcula automáticamente según la
-                      cotización vigente al guardar.
-                    </p>
-                  </label>
-                </>
+                <label className="block mb-2">
+                  Precio (USD)
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editingProduct.priceUSD || ""}
+                    onChange={(e) =>
+                      setEditingProduct((prev) => ({
+                        ...prev,
+                        priceUSD: e.target.value,
+                      }))
+                    }
+                    className="border w-full p-2 rounded mt-1"
+                    required
+                  />
+                </label>
               )}
 
-              {/* Categoría (input + datalist) */}
-              <label className="block mb-2">
-                Categoría
-                <input
-                  list="dl-categories"
-                  placeholder="Escribí o elegí una categoría…"
-                  value={editingProduct.category || ""}
-                  onChange={(e) =>
-                    setEditingProduct((prev) => {
-                      const nextCat = e.target.value;
-                      return {
-                        ...prev,
-                        category: nextCat,
-                        // al cambiar categoría, limpiar subcategoría
-                        subcategory: "",
-                      };
-                    })
-                  }
-                  className="border w-full p-2 rounded mt-1"
-                  required
-                />
-                <datalist id="dl-categories">
-                  {categoryOptions.map((opt) => (
-                    <option key={opt} value={opt} />
-                  ))}
-                </datalist>
-              </label>
-
-              {/* Subcategoría (input + datalist dependiente) */}
+              {/* Categorías múltiples */}
+              {/* Categorías con chips */}
               <label className="block mb-4">
-                Subcategoría
-                <input
-                  list="dl-subcategories"
-                  placeholder="Escribí o elegí una subcategoría…"
-                  value={editingProduct.subcategory || ""}
-                  onChange={(e) =>
-                    setEditingProduct((prev) => ({
-                      ...prev,
-                      subcategory: e.target.value,
-                    }))
-                  }
-                  className="border w-full p-2 rounded mt-1"
-                  disabled={!editingProduct.category}
-                />
-                <datalist id="dl-subcategories">
-                  {subcategoryOptions.map((opt) => (
-                    <option key={opt} value={opt} />
-                  ))}
-                </datalist>
+                <span className="font-medium">Categorías</span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {categories.map((c) => {
+                    const selected = editingProduct.categories?.includes(
+                      c.category
+                    );
+                    return (
+                      <button
+                        key={c.category}
+                        type="button"
+                        onClick={() => {
+                          setEditingProduct((prev) => {
+                            const already = prev.categories?.includes(
+                              c.category
+                            );
+                            const nextCats = already
+                              ? prev.categories.filter((x) => x !== c.category)
+                              : [...(prev.categories || []), c.category];
+                            return {
+                              ...prev,
+                              categories: nextCats,
+                              subcategories: [],
+                            };
+                          });
+                        }}
+                        className={`px-3 py-1 rounded-full border text-sm ${
+                          selected
+                            ? "bg-ayp text-white border-ayp"
+                            : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        {c.category}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  Podés seleccionar una o varias categorías.
+                </p>
               </label>
 
-              {/* Imagen */}
+              {/* Subcategorías múltiples */}
+              {editingProduct.categories?.length > 0 && (
+                <label className="block mb-4">
+                  <span className="font-medium">Subcategorías</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {editingProduct.categories.map((cat) => {
+                      const found = categories.find((c) => c.category === cat);
+                      return found?.subcategories?.map((s) => {
+                        const selected =
+                          editingProduct.subcategories?.includes(s);
+                        return (
+                          <button
+                            key={`${cat}-${s}`}
+                            type="button"
+                            onClick={() => {
+                              setEditingProduct((prev) => {
+                                const already = prev.subcategories?.includes(s);
+                                const nextSubs = already
+                                  ? prev.subcategories.filter((x) => x !== s)
+                                  : [...(prev.subcategories || []), s];
+                                return { ...prev, subcategories: nextSubs };
+                              });
+                            }}
+                            className={`px-3 py-1 rounded-full border text-sm ${
+                              selected
+                                ? "bg-green-600 text-white border-green-600"
+                                : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            {s}{" "}
+                            <span className="text-xs opacity-70">({cat})</span>
+                          </button>
+                        );
+                      });
+                    })}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Las subcategorías dependen de las categorías seleccionadas.
+                  </p>
+                </label>
+              )}
+
               <label className="block mb-4">
                 Imagen
                 <input
@@ -668,7 +665,6 @@ function AdminProducts() {
                 />
               </label>
 
-              {/* Botones */}
               <div className="flex justify-end gap-2">
                 <button
                   type="button"

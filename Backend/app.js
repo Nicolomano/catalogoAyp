@@ -7,6 +7,7 @@ import orderRouter from "./src/routes/orderRoute.js";
 import authRouter from "./src/routes/authRoute.js";
 import bannerRoutes from "./src/routes/bannerRoutes.js";
 import dashboardRouter from "./src/routes/dashboardRoute.js";
+import categoryRouter from "./src/routes/categoryRoutes.js";
 import kitRouter from "./src/routes/kitRoutes.js";
 import corsOptions from "./src/utils/cors.js";
 
@@ -23,6 +24,7 @@ app.use("/api/orders", orderRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/banners", bannerRoutes);
+app.use("/api/categories", categoryRouter);
 app.use("/api/kits", kitRouter);
 app.use((req, res) => {
   res.status(404).send("Ruta no encontrada");

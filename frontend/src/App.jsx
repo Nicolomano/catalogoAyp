@@ -15,6 +15,7 @@ import AdminOrders from "./components/AdminOrders.jsx";
 import AdminBanners from "./pages/AdminBanners.jsx";
 import KitInstalacion from "./pages/KitInstalacion.jsx";
 import AdminInstallKit from "./pages/AdminInstallKit.jsx";
+import AdminCategories from "./pages/AdminCategories.jsx";
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
           <Route path="banners" element={<AdminBanners />} />{" "}
           <Route path="config" element={<AdminConfig />} />{" "}
           <Route path="install-kit" element={<AdminInstallKit />} />
+          <Route path="categories" element={<AdminCategories />} />
           {/* /admin/config */}
         </Route>
       </Routes>

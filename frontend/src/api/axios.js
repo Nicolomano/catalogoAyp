@@ -4,12 +4,25 @@ const API = axios.create({
   baseURL: "https://catalogoayp-production.up.railway.app/api",
 });
 
-API.interceptors.request.use((req) => {
+// ✅ Interceptor para agregar token a cada request
+API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
-    req.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  return req;
+  return config;
 });
+
+// ✅ Interceptor para manejar expiración
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/admin/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default API;

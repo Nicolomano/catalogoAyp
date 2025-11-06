@@ -1,42 +1,64 @@
 import mongoose from "mongoose";
-import configModel from "./configModel.js";
+import Config from "./configModel.js";
 
-const productsCollection = "products";
 const productSchema = new mongoose.Schema(
   {
-    name: String,
-    description: String,
-    priceUSD: Number,
-    priceARS: Number,
-    category: String,
-    subcategory: { type: String },
-    image: String,
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     productCode: {
       type: String,
-      unique: true,
       required: true,
+      unique: true,
+      trim: true,
     },
+    image: {
+      type: String,
+      default: null,
+    },
+
+    // 💰 precios
+    priceUSD: { type: Number },
+    priceARS: { type: Number },
+    fixedInARS: { type: Boolean, default: false },
+
+    // ✅ categorías y subcategorías como strings (no ObjectId)
+    categories: [{ type: String, trim: true }],
+    subcategories: [{ type: String, trim: true }],
+
+    // 📊 estado y métricas
     active: { type: Boolean, default: true },
     views: { type: Number, default: 0 },
     soldCount: { type: Number, default: 0 },
-    fixedInARS: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-productSchema.index({ createdAt: -1 });
+// 🔍 índices de texto para búsqueda
+productSchema.index({ name: "text", productCode: "text", description: "text" });
 
+// ⚙️ recalcula el precio en ARS si no es fijo
 productSchema.pre("save", async function (next) {
-  if (this.fixedInARS === true) return next(); //respeta el precio fijo en ARS
-  const Config = configModel;
-  const config = await Config.findOne();
-  const exchangeRate = config ? config.exchangeRate : 1;
-  this.priceARS = this.priceUSD * exchangeRate;
+  if (this.fixedInARS === true) return next();
+
+  try {
+    const cfg = await Config.findOne();
+    const rate = cfg ? cfg.exchangeRate : 1;
+    this.priceARS = Number(this.priceUSD) * Number(rate);
+  } catch (err) {
+    console.error("Error aplicando tasa de cambio:", err);
+  }
+
   next();
 });
-// services/models/productModel.js (después del schema)
-productSchema.index({ name: "text", productCode: "text" });
-productSchema.index({ category: 1, subcategory: 1 });
 
-const productModel = mongoose.model(productsCollection, productSchema);
-export default productModel;
+export default mongoose.model("Product", productSchema);

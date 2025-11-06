@@ -1,13 +1,16 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import API from "../api/axios";
 
 export default function HeroCarousel({ type = "home" }) {
+  // Ref del autoplay para poder controlarlo manualmente
+  const autoplay = useRef(Autoplay({ delay: 4000, stopOnInteraction: false }));
+
   const [slides, setSlides] = useState([]);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
-    Autoplay({ delay: 4000, stopOnInteraction: false }),
+    autoplay.current,
   ]);
   const [selected, setSelected] = useState(0);
 
@@ -28,12 +31,41 @@ export default function HeroCarousel({ type = "home" }) {
     onSelect();
   }, [emblaApi, onSelect]);
 
-  const scrollPrev = () => emblaApi && emblaApi.scrollPrev();
-  const scrollNext = () => emblaApi && emblaApi.scrollNext();
+  // Pausar autoplay al pasar el mouse
+  const handleMouseEnter = useCallback(() => {
+    autoplay.current.stop();
+  }, []);
 
-  // Helper: construir destino interno por categoría/subcategoría o normalizar links
+  // Reanudar autoplay al salir
+  const handleMouseLeave = useCallback(() => {
+    autoplay.current.play();
+  }, []);
+
+  // Reiniciar el autoplay cuando el usuario interactúa (manual reset)
+  const resetAutoplay = useCallback(() => {
+    autoplay.current.stop();
+    autoplay.current.play();
+  }, []);
+
+  const scrollPrev = () => {
+    if (!emblaApi) return;
+    emblaApi.scrollPrev();
+    resetAutoplay();
+  };
+
+  const scrollNext = () => {
+    if (!emblaApi) return;
+    emblaApi.scrollNext();
+    resetAutoplay();
+  };
+
+  const scrollTo = (index) => {
+    if (!emblaApi) return;
+    emblaApi.scrollTo(index);
+    resetAutoplay();
+  };
+
   const computeDest = (s) => {
-    // prioridad: targetCategory/subcategory -> link interno con query
     if (s.targetCategory) {
       const cat = encodeURIComponent(s.targetCategory);
       const sub = s.targetSubcategory
@@ -43,16 +75,13 @@ export default function HeroCarousel({ type = "home" }) {
     }
     if (!s.linkUrl) return null;
 
-    // Normalizar: si es absoluta del mismo origen, convertir a ruta interna
     try {
       const url = new URL(s.linkUrl, window.location.origin);
       if (url.origin === window.location.origin) {
         return `${url.pathname}${url.search}${url.hash || ""}`;
       }
-      // externo: devolvemos la absoluta
       return url.toString();
     } catch {
-      // si es relativa tipo "/algo", la devolvemos como está
       return s.linkUrl;
     }
   };
@@ -60,7 +89,11 @@ export default function HeroCarousel({ type = "home" }) {
   if (!slides.length) return null;
 
   return (
-    <div className="w-full relative group">
+    <div
+      className="w-full relative group"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {/* Viewport */}
       <div className="overflow-hidden rounded-lg" ref={emblaRef}>
         <div className="flex">
@@ -105,12 +138,10 @@ export default function HeroCarousel({ type = "home" }) {
               >
                 {dest ? (
                   isInternal ? (
-                    // Interno -> SPA, misma pestaña siempre
                     <Link to={dest} aria-label={s.title || "Ver más"}>
                       {SlideInner}
                     </Link>
                   ) : (
-                    // Externo -> misma pestaña (sin target="_blank")
                     <a href={dest} aria-label={s.title || "Abrir"}>
                       {SlideInner}
                     </a>
@@ -146,7 +177,7 @@ export default function HeroCarousel({ type = "home" }) {
           <button
             key={i}
             aria-label={`Ir al slide ${i + 1}`}
-            onClick={() => emblaApi && emblaApi.scrollTo(i)}
+            onClick={() => scrollTo(i)}
             className={`h-2.5 w-2.5 rounded-full ${
               selected === i ? "bg-white" : "bg-white/50"
             } border border-white/70 shadow`}

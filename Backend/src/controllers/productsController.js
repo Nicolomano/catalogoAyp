@@ -1,155 +1,161 @@
 import productModel from "../services/models/productModel.js";
 import Config from "../services/models/configModel.js";
-
+import Category from "../services/models/category.js";
+import XLSX from "xlsx";
+import fs from "fs";
+import path from "path";
+/* ----------------------- CREAR PRODUCTO ----------------------- */
 export async function createProduct(req, res) {
-  const {
-    name,
-    description,
-    priceUSD,
-    priceARS,
-    fixedInArs,
-    category,
-    subcategory,
-    productCode,
-  } = req.body;
-  const image = req.file ? req.file.secure_url || req.file.path : null;
-  if (!name || !description || !priceUSD || !category || !productCode) {
-    return res.status(400).json({ message: "All fields are required" });
-  }
   try {
+    const { name, description, priceUSD, priceARS, fixedInARS, productCode } =
+      req.body;
+
+    // Normalizar arrays
+    const categories =
+      req.body.categories && !Array.isArray(req.body.categories)
+        ? [req.body.categories]
+        : req.body.categories || [];
+
+    const subcategories =
+      req.body.subcategories && !Array.isArray(req.body.subcategories)
+        ? [req.body.subcategories]
+        : req.body.subcategories || [];
+
+    const image = req.file ? req.file.secure_url || req.file.path : null;
+
+    if (!name || !description || !productCode)
+      return res.status(400).json({ message: "Faltan campos obligatorios" });
+
+    const fixedFlag = String(fixedInARS).toLowerCase() === "true";
+
+    let priceARSFinal = priceARS ? parseFloat(priceARS) : undefined;
+    let priceUSDFinal = priceUSD ? parseFloat(priceUSD) : undefined;
+
+    // Si no está fijo → recalcular ARS según cotización
+    if (!fixedFlag && priceUSDFinal) {
+      const cfg = await Config.findOne();
+      const rate = cfg ? cfg.exchangeRate : 1;
+      priceARSFinal = Number(priceUSDFinal) * Number(rate || 1);
+    }
+
     const newProduct = new productModel({
       name,
       description,
-      priceUSD: priceUSD !== undefined ? parseFloat(priceUSD) : undefined,
-      priceARS: priceARS !== undefined ? parseFloat(priceARS) : undefined,
-      fixedInArs: Boolean(fixedInArs),
-      category,
-      subcategory,
-      image,
       productCode,
+      priceUSD: priceUSDFinal,
+      priceARS: priceARSFinal,
+      fixedInARS: fixedFlag,
+      categories,
+      subcategories,
+      image,
     });
+
     await newProduct.save();
     res.status(201).json(newProduct);
   } catch (error) {
+    console.error("Error creando producto:", error);
     res.status(500).json({
-      message: "Error creating product",
+      message: "Error creando producto",
       error: error.message,
-      stack: error.stack,
     });
   }
 }
 
+/* ----------------------- SUBIR IMAGEN ----------------------- */
 export async function uploadImage(req, res) {
-  if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded" });
-  }
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
   res.json({ imageUrl: req.file.secure_url });
 }
 
-export const updateProduct = async (req, res) => {
+/* ----------------------- ACTUALIZAR PRODUCTO ----------------------- */
+export async function updateProduct(req, res) {
   try {
     const { id } = req.params;
 
-    // Leer el estado actual para decidir cuando no vienen campos
     const current = await productModel.findById(id).lean();
     if (!current)
       return res.status(404).json({ message: "Producto no encontrado" });
 
-    // Normalizar boolean que llega como string en multipart/form-data
     const fixedFlag =
       req.body.fixedInARS !== undefined
         ? String(req.body.fixedInARS).toLowerCase() === "true"
-        : undefined;
+        : current.fixedInARS;
+
+    // Normalizar arrays
+    const categories =
+      req.body.categories && !Array.isArray(req.body.categories)
+        ? [req.body.categories]
+        : req.body.categories || current.categories || [];
+
+    const subcategories =
+      req.body.subcategories && !Array.isArray(req.body.subcategories)
+        ? [req.body.subcategories]
+        : req.body.subcategories || current.subcategories || [];
 
     const updateData = {
-      name: req.body.name,
-      productCode: req.body.productCode,
-      priceUSD:
-        req.body.priceUSD !== undefined && req.body.priceUSD !== ""
-          ? Number(req.body.priceUSD)
-          : undefined,
-      priceARS:
-        req.body.priceARS !== undefined && req.body.priceARS !== ""
-          ? Number(req.body.priceARS)
-          : undefined,
-      // solo setear si vino; si no, conservar el valor actual
-      fixedInARS: fixedFlag !== undefined ? fixedFlag : undefined,
-      category: req.body.category,
-      subcategory: req.body.subcategory,
+      name: req.body.name ?? current.name,
+      description: req.body.description ?? current.description,
+      productCode: req.body.productCode ?? current.productCode,
+      fixedInARS: fixedFlag,
+      categories,
+      subcategories,
     };
 
-    if (req.file?.path) {
-      updateData.image = req.file.path;
-    }
+    if (req.file?.path) updateData.image = req.file.path;
 
-    // Decidir el valor efectivo de fixedInARS para la lógica de precios
-    const effectiveFixed =
-      fixedFlag !== undefined ? fixedFlag : current.fixedInARS;
+    // Manejo de precios
+    const priceUSD = req.body.priceUSD ? Number(req.body.priceUSD) : undefined;
+    const priceARS = req.body.priceARS ? Number(req.body.priceARS) : undefined;
 
-    // Si NO es fijo y vino un USD nuevo → recalcular ARS
-    if (effectiveFixed === false && updateData.priceUSD != null) {
+    if (!fixedFlag && priceUSD != null) {
       const cfg = await Config.findOne();
       const rate = cfg ? cfg.exchangeRate : 1;
-      updateData.priceARS = Number(updateData.priceUSD) * Number(rate || 1);
+      updateData.priceUSD = priceUSD;
+      updateData.priceARS = Number(priceUSD) * Number(rate || 1);
+    } else if (fixedFlag) {
+      if (priceARS != null) updateData.priceARS = priceARS;
+      if (priceUSD != null) updateData.priceUSD = priceUSD;
     }
-
-    // Si ES fijo y NO vino un ARS nuevo → no tocar el ARS existente
-    if (effectiveFixed === true && updateData.priceARS === undefined) {
-      delete updateData.priceARS;
-    }
-
-    // Evitar enviar undefineds en el update
-    Object.keys(updateData).forEach(
-      (k) => updateData[k] === undefined && delete updateData[k]
-    );
 
     const updated = await productModel.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     });
 
-    if (!updated) {
-      return res.status(404).json({ message: "Producto no encontrado" });
-    }
     res.json(updated);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error actualizando producto", error: error.message });
-  }
-};
-
-/// Obtener producto por código
-export async function getProductByCode(req, res) {
-  const { productCode } = req.params;
-  try {
-    const product = await productModel.findOneAndUpdate(
-      {
-        productCode: productCode.toString(),
-        active: true,
-      },
-      { $inc: { views: 1 } },
-      { new: true }
-    );
-
-    if (!product) {
-      return res
-        .status(404)
-        .json({ message: `No se encontró producto con código ${productCode}` });
-    }
-
-    res.status(200).json(product);
-  } catch (error) {
-    console.error("💥 Error obteniendo producto:", error);
+    console.error("Error actualizando producto:", error);
     res.status(500).json({
-      message: "Error buscando producto",
+      message: "Error actualizando producto",
       error: error.message,
     });
   }
 }
 
-//obtener productos por categoria
+/* ----------------------- PRODUCTO POR CÓDIGO (PÚBLICO) ----------------------- */
+export async function getProductByCode(req, res) {
+  const { productCode } = req.params;
+  try {
+    const product = await productModel.findOneAndUpdate(
+      { productCode: productCode.toString(), active: true },
+      { $inc: { views: 1 } },
+      { new: true }
+    );
 
+    if (!product)
+      return res
+        .status(404)
+        .json({ message: `No se encontró producto con código ${productCode}` });
+
+    res.status(200).json(product);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error buscando producto", error: error.message });
+  }
+}
+
+/* ----------------------- PRODUCTOS POR CATEGORÍA ----------------------- */
 export const getProductsByCategory = async (req, res) => {
   try {
     const {
@@ -163,19 +169,18 @@ export const getProductsByCategory = async (req, res) => {
       limit = 0,
     } = req.query;
 
-    // 🔹 Filtros
-    let filter = { active: true };
+    const filter = { active: true };
 
-    if (category) {
-      filter.category = category;
-    }
-    if (subcategory) {
-      filter.subcategory = subcategory;
+    // ✅ Filtro directo por nombre (no busca en Category)
+    if (category && category !== "all") {
+      filter.categories = { $in: [category] };
     }
 
-    if (search) {
-      filter.name = { $regex: search, $options: "i" }; // búsqueda insensible a mayúsculas
+    if (subcategory && subcategory !== "all") {
+      filter.subcategories = { $in: [subcategory] };
     }
+
+    if (search) filter.name = { $regex: search, $options: "i" };
 
     if (minPrice || maxPrice) {
       filter.priceARS = {};
@@ -183,11 +188,9 @@ export const getProductsByCategory = async (req, res) => {
       if (maxPrice) filter.priceARS.$lte = Number(maxPrice);
     }
 
-    // 🔹 Paginación
     const skip = (Number(page) - 1) * Number(limit);
+    const sortOption = {};
 
-    // 🔹 Ordenamiento
-    let sortOption = {};
     if (sort) {
       const [field, order] = sort.split(":");
       sortOption[field] = order === "desc" ? -1 : 1;
@@ -205,34 +208,28 @@ export const getProductsByCategory = async (req, res) => {
     res.status(200).json({
       total,
       page: Number(page),
-      pages: Math.ceil(total / limit),
+      pages: limit ? Math.ceil(total / limit) : 1,
       products,
     });
   } catch (error) {
+    console.error("Error en getProductsByCategory:", error);
     res.status(500).json({
       message: "Error buscando productos",
       error: error.message,
     });
   }
 };
-
+/* ----------------------- ELIMINAR PRODUCTO ----------------------- */
 export async function deleteProduct(req, res) {
-  const { id } = req.params;
-
   try {
-    const product = await productModel.findOneAndDelete({
-      _id: id.toString(),
-    });
-
-    if (!product) {
-      return res
-        .status(404)
-        .json({ message: `No se encontró producto con código ${productCode}` });
-    }
+    const { id } = req.params;
+    const deleted = await productModel.findByIdAndDelete(id);
+    if (!deleted)
+      return res.status(404).json({ message: "Producto no encontrado" });
 
     res.status(200).json({ message: "Producto eliminado exitosamente" });
   } catch (error) {
-    console.error("error eliminando producto:", error);
+    console.error("Error eliminando producto:", error);
     res.status(500).json({
       message: "Error eliminando producto",
       error: error.message,
@@ -240,14 +237,13 @@ export async function deleteProduct(req, res) {
   }
 }
 
+/* ----------------------- TOGGLE ACTIVO ----------------------- */
 export const toggleProduct = async (req, res) => {
   try {
     const { id } = req.params;
-
     const product = await productModel.findById(id);
-    if (!product) {
+    if (!product)
       return res.status(404).json({ message: "Producto no encontrado" });
-    }
 
     product.active = !product.active;
     await product.save();
@@ -266,48 +262,28 @@ export const toggleProduct = async (req, res) => {
   }
 };
 
-export const getProductByCodeAdmin = async (req, res) => {
-  const { productCode } = req.params;
-  try {
-    const product = await productModel.findOne({
-      productCode: productCode.toString(),
-    });
-
-    if (!product) {
-      return res
-        .status(404)
-        .json({ message: `No se encontró producto con código ${productCode}` });
-    }
-
-    res.status(200).json(product);
-  } catch (error) {
-    console.error("💥 Error obteniendo producto (admin):", error);
-    res.status(500).json({
-      message: "Error buscando producto (admin)",
-      error: error.message,
-    });
-  }
-};
-// controllers/productsController.js
+/* ----------------------- PRODUCTOS (GET) ----------------------- */
 export const getProductsAdmin = async (req, res) => {
   try {
     const {
       search = "",
-      page = 1,
-      limit = 20,
       category,
       subcategory,
-      sort, // ej: "createdAt:desc" o "name:asc"
-      active, // opcional: "true"/"false"
+      sort,
+      active,
+      page = 1,
+      limit = 0,
     } = req.query;
 
     const filter = {};
+
     if (search) {
       const term = new RegExp(search.trim(), "i");
       filter.$or = [{ name: term }, { productCode: term }];
     }
-    if (category) filter.category = category;
-    if (subcategory) filter.subcategory = subcategory;
+
+    if (category) filter.categories = { $in: [category] };
+    if (subcategory) filter.subcategories = { $in: [subcategory] };
     if (active === "true") filter.active = true;
     if (active === "false") filter.active = false;
 
@@ -325,7 +301,7 @@ export const getProductsAdmin = async (req, res) => {
       productModel
         .find(filter)
         .sort(sortOption)
-        .skip(Number(skip))
+        .skip(skip)
         .limit(Number(limit))
         .lean(),
       productModel.countDocuments(filter),
@@ -338,6 +314,7 @@ export const getProductsAdmin = async (req, res) => {
       products,
     });
   } catch (error) {
+    console.error("Error obteniendo productos (admin):", error);
     res.status(500).json({
       message: "Error obteniendo productos (admin)",
       error: error.message,
@@ -345,45 +322,96 @@ export const getProductsAdmin = async (req, res) => {
   }
 };
 
-export const getProductById = async (id) => {
-  try {
-    const product = await productModel.findById(id).lean();
-    return product;
-  } catch (error) {
-    res.status(500).json({
-      message: "Error buscando producto por ID",
-      error: error.message,
-    });
-  }
-};
-
+/* ----------------------- META DE CATEGORÍAS ----------------------- */
 export const getCategoriesMeta = async (req, res) => {
   try {
-    const onlyActive = req.query.active !== "false"; // por defecto solo activos
+    const onlyActive = req.query.active !== "false";
     const match = onlyActive ? { active: true } : {};
 
     const docs = await productModel.aggregate([
       { $match: match },
       {
-        $group: {
-          _id: "$category",
-          subs: { $addToSet: "$subcategory" },
+        $project: {
+          categories: { $ifNull: ["$categories", []] },
+          subcategories: { $ifNull: ["$subcategories", []] },
         },
       },
-      { $sort: { _id: 1 } },
+      { $unwind: "$categories" },
+      {
+        $group: {
+          _id: "$categories",
+          subcategories: { $addToSet: "$subcategories" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          category: "$_id",
+          subcategories: {
+            $reduce: {
+              input: "$subcategories",
+              initialValue: [],
+              in: { $setUnion: ["$$value", "$$this"] },
+            },
+          },
+        },
+      },
+      { $sort: { category: 1 } },
     ]);
 
-    // Normalizamos la salida a { category, subcategories[] }
-    const payload = docs.map((d) => ({
-      category: d._id,
-      subcategories: (d.subs || []).filter(Boolean).sort(),
-    }));
-
-    res.json(payload);
+    res.json(docs);
   } catch (error) {
+    console.error("Error obteniendo categorías y subcategorías:", error);
     res.status(500).json({
       message: "Error obteniendo categorías y subcategorías",
       error: error.message,
     });
+  }
+};
+
+export const exportProductsExcel = async (req, res) => {
+  try {
+    const products = await productModel
+      .find(
+        {},
+        "productCode name priceARS priceUSD active categories subcategories"
+      )
+      .lean();
+
+    const data = products.map((p) => ({
+      Código: p.productCode,
+      Nombre: p.name,
+      "Precio (ARS)": p.priceARS || "",
+      "Precio (USD)": p.priceUSD || "",
+      Estado: p.active ? "Activo" : "Inactivo",
+      Categorías: Array.isArray(p.categories) ? p.categories.join(", ") : "",
+      Subcategorías: Array.isArray(p.subcategories)
+        ? p.subcategories.join(", ")
+        : "",
+    }));
+
+    // Crear hoja y libro
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
+
+    // Guardar temporalmente
+    const tmpDir = path.resolve("./tmp");
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir);
+    }
+
+    const filePath = path.join(tmpDir, "productos_ayp.xlsx");
+    XLSX.writeFile(workbook, filePath);
+    // Enviar descarga
+    res.download(filePath, "productos_ayp.xlsx", (err) => {
+      if (err) {
+        console.error("❌ Error enviando archivo Excel:", err);
+      }
+      fs.unlinkSync(filePath); // eliminar archivo temporal
+    });
+  } catch (error) {
+    console.error("❌ Error exportando Excel:", error);
+    res.status(500).json({ message: "Error exportando Excel" });
   }
 };
