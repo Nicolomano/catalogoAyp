@@ -14,6 +14,7 @@ function Catalogo() {
 
   // filtros
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(""); // 👈 NUEVO
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [category, setCategory] = useState("all");
@@ -26,6 +27,12 @@ function Catalogo() {
     () => new URLSearchParams(location.search),
     [location.search]
   );
+
+  /* 🔹 Debounce de search (400ms) */
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
   /* 🔹 Cargar categorías y subcategorías */
   useEffect(() => {
@@ -44,7 +51,6 @@ function Catalogo() {
   /* 🔹 Sincronizar filtros DESDE la URL */
   useEffect(() => {
     if (!categories.length) return;
-
     const cat = params.get("cat");
     const sub = params.get("sub");
 
@@ -53,40 +59,43 @@ function Catalogo() {
       if (sel) {
         setCategory(cat);
         setSubcategories(sel.subcategories || []);
-        if (sub && sel.subcategories?.includes(sub)) {
-          setSubcategory(sub);
-        } else {
-          setSubcategory("all");
-        }
+        if (sub && sel.subcategories?.includes(sub)) setSubcategory(sub);
+        else setSubcategory("all");
         return;
       }
     }
-
     setCategory("all");
     setSubcategories([]);
     setSubcategory("all");
   }, [categories, params]);
 
-  /* 🔹 Obtener productos filtrados desde el backend */
+  /* 🔹 Obtener productos filtrados desde el backend (con debounce + cancelación) */
   useEffect(() => {
+    const controller = new AbortController(); // 👈 cancelación
     setLoading(true);
 
     const query = new URLSearchParams();
     query.set("limit", 0);
     query.set("sort", sort);
-
     if (category !== "all") query.set("category", category);
     if (subcategory !== "all") query.set("subcategory", subcategory);
-    if (search.trim()) query.set("search", search.trim());
+    // Solo buscar si hay 2+ chars; si no, no mandamos el parámetro
+    if (debouncedSearch.length >= 2) query.set("search", debouncedSearch);
 
-    API.get(`/products?${query.toString()}`)
+    API.get(`/products?${query.toString()}`, { signal: controller.signal })
       .then((res) => {
         const data = res.data?.products || [];
         setProducts(data);
       })
-      .catch((err) => console.error("Error cargando productos:", err))
+      .catch((err) => {
+        if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
+          console.error("Error cargando productos:", err);
+        }
+      })
       .finally(() => setLoading(false));
-  }, [category, subcategory, sort, search]);
+
+    return () => controller.abort(); // 👈 cancela si cambia algo del effect
+  }, [category, subcategory, sort, debouncedSearch]);
 
   /* 🔹 Helpers cantidad */
   const handleIncrease = (code) =>
@@ -98,7 +107,7 @@ function Catalogo() {
       return { ...prev, [code]: newVal > 1 ? newVal : 1 };
     });
 
-  /* 🔹 Precio en 6 cuotas con +27% */
+  /* 🔹 Precio en 6 cuotas con +30% */
   const calcCuota6 = (priceARS) => {
     if (!priceARS || isNaN(priceARS)) return null;
     const cuota = (priceARS * 1.3) / 6;
@@ -120,11 +129,8 @@ function Catalogo() {
 
   const updateUrlForSubcategory = (value) => {
     const u = new URL(window.location.href);
-    if (value === "all") {
-      u.searchParams.delete("sub");
-    } else {
-      u.searchParams.set("sub", value);
-    }
+    if (value === "all") u.searchParams.delete("sub");
+    else u.searchParams.set("sub", value);
     navigate(`${u.pathname}${u.search}`, { replace: true });
   };
 
