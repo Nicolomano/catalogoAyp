@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { useCart } from "../Context/CartContext.jsx";
@@ -6,15 +6,17 @@ import toast from "react-hot-toast";
 import HeroCarousel from "../components/HeroCarousel.jsx";
 
 function Catalogo() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [serverProducts, setServerProducts] = useState([]); // última respuesta del backend
+  const [products, setProducts] = useState([]); // lo que se muestra
+  const [isFetching, setIsFetching] = useState(false); // spinner pequeño
+  const [isPending, startTransition] = useTransition();
 
   const { addToCart } = useCart();
   const [quantities, setQuantities] = useState({});
 
   // filtros
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState(""); // 👈 NUEVO
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [category, setCategory] = useState("all");
@@ -28,13 +30,13 @@ function Catalogo() {
     [location.search]
   );
 
-  /* 🔹 Debounce de search (400ms) */
+  /* Debounce de search */
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 900);
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
     return () => clearTimeout(t);
   }, [search]);
 
-  /* 🔹 Cargar categorías y subcategorías */
+  /* Cargar categorías */
   useEffect(() => {
     API.get("/products/meta/categories")
       .then((res) => {
@@ -48,19 +50,17 @@ function Catalogo() {
       .catch((err) => console.error("Error cargando categorías:", err));
   }, []);
 
-  /* 🔹 Sincronizar filtros DESDE la URL */
+  /* URL → filtros */
   useEffect(() => {
     if (!categories.length) return;
     const cat = params.get("cat");
     const sub = params.get("sub");
-
     if (cat) {
       const sel = categories.find((c) => c.category === cat);
       if (sel) {
         setCategory(cat);
         setSubcategories(sel.subcategories || []);
-        if (sub && sel.subcategories?.includes(sub)) setSubcategory(sub);
-        else setSubcategory("all");
+        setSubcategory(sub && sel.subcategories?.includes(sub) ? sub : "all");
         return;
       }
     }
@@ -69,52 +69,83 @@ function Catalogo() {
     setSubcategory("all");
   }, [categories, params]);
 
-  /* 🔹 Obtener productos filtrados desde el backend (con debounce + cancelación) */
+  /* Fetch al backend (sin bloquear UI) */
   useEffect(() => {
-    const controller = new AbortController(); // 👈 cancelación
-    setLoading(true);
+    const controller = new AbortController();
+    setIsFetching(true);
 
-    const query = new URLSearchParams();
-    query.set("limit", 0);
-    query.set("sort", sort);
-    if (category !== "all") query.set("category", category);
-    if (subcategory !== "all") query.set("subcategory", subcategory);
-    // Solo buscar si hay 2+ chars; si no, no mandamos el parámetro
-    if (debouncedSearch.length >= 2) query.set("search", debouncedSearch);
+    const qs = new URLSearchParams();
+    qs.set("limit", 0);
+    qs.set("sort", sort);
+    if (category !== "all") qs.set("category", category);
+    if (subcategory !== "all") qs.set("subcategory", subcategory);
+    if (debouncedSearch.length >= 2) qs.set("search", debouncedSearch);
 
-    API.get(`/products?${query.toString()}`, { signal: controller.signal })
+    API.get(`/products?${qs.toString()}`, { signal: controller.signal })
       .then((res) => {
         const data = res.data?.products || [];
-        setProducts(data);
+        setServerProducts(data);
+        // actualizamos la grilla sin bloquear (React 18)
+        startTransition(() => setProducts(data));
       })
       .catch((err) => {
         if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
           console.error("Error cargando productos:", err);
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => setIsFetching(false));
 
-    return () => controller.abort(); // 👈 cancela si cambia algo del effect
+    return () => controller.abort();
   }, [category, subcategory, sort, debouncedSearch]);
 
-  /* 🔹 Helpers cantidad */
+  /* Filtro en vivo (instantáneo) sobre la lista ya mostrada */
+  const clientFiltered = useMemo(() => {
+    // Partimos de LO QUE YA ESTAMOS MOSTRANDO para que se sienta instantáneo
+    let list = serverProducts;
+    if (category !== "all") {
+      list = list.filter(
+        (p) => Array.isArray(p.categories) && p.categories.includes(category)
+      );
+    }
+    if (subcategory !== "all") {
+      list = list.filter(
+        (p) =>
+          Array.isArray(p.subcategories) &&
+          p.subcategories.includes(subcategory)
+      );
+    }
+    if (search.trim()) {
+      const term = search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(term) ||
+          p.productCode?.toLowerCase().includes(term)
+      );
+    }
+    return list;
+  }, [serverProducts, category, subcategory, search]);
+
+  // siempre mostramos el filtrado cliente instantáneo
+  useEffect(() => {
+    startTransition(() => setProducts(clientFiltered));
+  }, [clientFiltered]);
+
+  /* Helpers cantidad */
   const handleIncrease = (code) =>
     setQuantities((prev) => ({ ...prev, [code]: (prev[code] || 1) + 1 }));
-
   const handleDecrease = (code) =>
     setQuantities((prev) => {
       const newVal = (prev[code] || 1) - 1;
       return { ...prev, [code]: newVal > 1 ? newVal : 1 };
     });
 
-  /* 🔹 Precio en 6 cuotas con +30% */
+  /* 6 cuotas (+30%) */
   const calcCuota6 = (priceARS) => {
     if (!priceARS || isNaN(priceARS)) return null;
-    const cuota = (priceARS * 1.3) / 6;
-    return Math.round(cuota);
+    return Math.round((priceARS * 1.3) / 6);
   };
 
-  /* 🔹 Sincronizar filtros HACIA la URL */
+  /* URL helpers */
   const updateUrlForCategory = (selectedCat) => {
     const u = new URL(window.location.href);
     if (selectedCat === "all") {
@@ -126,7 +157,6 @@ function Catalogo() {
     }
     navigate(`${u.pathname}${u.search}`, { replace: true });
   };
-
   const updateUrlForSubcategory = (value) => {
     const u = new URL(window.location.href);
     if (value === "all") u.searchParams.delete("sub");
@@ -134,31 +164,26 @@ function Catalogo() {
     navigate(`${u.pathname}${u.search}`, { replace: true });
   };
 
-  /* 🔹 Loader */
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-ayp">
-        <p className="text-white text-xl">Cargando productos...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-ayp px-4 sm:px-6 md:px-8 py-6">
-      {/* Banner / Slider */}
       <HeroCarousel type="home" />
 
-      {/* 🔹 Filtros */}
+      {/* Filtros */}
       <div className="mt-6 flex flex-col md:flex-row md:flex-wrap justify-center items-stretch gap-3 sm:gap-4 mb-6 sm:mb-8">
-        {/* Buscar */}
-        <input
-          type="text"
-          placeholder="Buscar por nombre o código..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="search-input w-full rounded-md px-3 py-2 outline-none"
-          aria-label="Buscar por nombre o código"
-        />
+        {/* Buscar + spinner chico */}
+        <div className="relative w-full">
+          <input
+            type="text"
+            placeholder="Buscar por nombre o código..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="search-input w-full rounded-md px-3 py-2 outline-none pr-8"
+            aria-label="Buscar por nombre o código"
+          />
+          {(isFetching || isPending) && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin h-4 w-4 border-2 border-white/60 border-t-transparent rounded-full" />
+          )}
+        </div>
 
         {/* Categoría */}
         <select
@@ -219,7 +244,7 @@ function Catalogo() {
         </select>
       </div>
 
-      {/* 🔹 Productos */}
+      {/* Productos (sin pantalla de “Cargando…”) */}
       {products.length === 0 ? (
         <p className="text-white text-center text-lg">
           No se encontraron productos.
