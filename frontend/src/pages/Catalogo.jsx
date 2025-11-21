@@ -30,7 +30,7 @@ function Catalogo() {
 
   /* 🔹 Debounce de search (400ms) */
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 900);
     return () => clearTimeout(t);
   }, [search]);
 
