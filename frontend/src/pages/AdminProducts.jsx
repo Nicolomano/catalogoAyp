@@ -215,29 +215,39 @@ function AdminProducts() {
             className="bg-ayp text-white px-4 py-2 rounded hover:bg-ayp-dark"
             onClick={() =>
               setEditingProduct({
-                name: "",
-                description: "",
-                priceUSD: 0,
-                priceARS: "",
-                fixedInARS: false,
-                categories: [],
-                subcategories: [],
-                productCode: "",
+                name: "", description: "", priceUSD: 0, priceARS: "",
+                fixedInARS: false, categories: [], subcategories: [],
+                productCode: "", brand: "", isFeatured: false, isNewArrival: false,
               })
             }
           >
             ➕ Nuevo producto
           </button>
+          <label className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded cursor-pointer text-sm">
+            📥 Importar Excel
+            <input type="file" accept=".xlsx,.xls" className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const fd = new FormData();
+                fd.append("file", file);
+                try {
+                  const res = await API.post("/products/import/excel", fd, {
+                    headers: { ...AUTH_HEADER(), "Content-Type": "multipart/form-data" },
+                  });
+                  toast.success(`✅ Creados: ${res.data.created} | Actualizados: ${res.data.updated}`);
+                  if (res.data.errors?.length) toast.error(`${res.data.errors.length} errores`);
+                  fetchProducts();
+                } catch { toast.error("Error importando Excel"); }
+                e.target.value = "";
+              }}
+            />
+          </label>
           <button
-            onClick={() => {
-              window.open(
-                `${API.defaults.baseURL}/products/export/excel`,
-                "_blank"
-              );
-            }}
+            onClick={() => window.open(`${API.defaults.baseURL}/products/export/excel`, "_blank")}
             className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
           >
-            📤 Exportar productos (CSV)
+            📤 Exportar Excel
           </button>
         </div>
       </div>
@@ -256,10 +266,10 @@ function AdminProducts() {
               <th className="p-3 text-left">Imagen</th>
               <th className="p-3 text-left">Código</th>
               <th className="p-3 text-left">Nombre</th>
+              <th className="p-3 text-left">Marca</th>
               <th className="p-3 text-left">Categorías</th>
-              <th className="p-3 text-left">Subcategorías</th>
               <th className="p-3 text-left">Precio (ARS)</th>
-              <th className="p-3 text-left">Precio (USD)</th>
+              <th className="p-3 text-left">Stock</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3">Acciones</th>
             </tr>
@@ -289,38 +299,31 @@ function AdminProducts() {
                     )}
                   </div>
                 </td>
+                <td className="p-3 text-sm">{p.brand || "-"}</td>
                 <td className="p-3">
                   {Array.isArray(p.categories) && p.categories.length
-                    ? p.categories.join(", ")
-                    : "-"}
+                    ? p.categories.join(", ") : "-"}
+                </td>
+                <td className="p-3 text-sm">
+                  {p.priceARS ? `$${Number(p.priceARS).toLocaleString("es-AR")}` : "-"}
                 </td>
                 <td className="p-3">
-                  {Array.isArray(p.subcategories) && p.subcategories.length
-                    ? p.subcategories.join(", ")
-                    : "-"}
-                </td>
-                <td className="p-3">
-                  {p.priceARS
-                    ? Number(p.priceARS).toLocaleString("es-AR", {
-                        style: "currency",
-                        currency: "ARS",
-                      })
-                    : "-"}
-                </td>
-                <td className="p-3">
-                  {p.priceUSD
-                    ? Number(p.priceUSD).toLocaleString("es-AR", {
-                        style: "currency",
-                        currency: "USD",
-                      })
-                    : "-"}
-                </td>
-                <td className="p-3">
-                  {p.active ? (
-                    <span className="text-green-600 font-bold">Activo</span>
+                  {p.inStock === false ? (
+                    <span className="text-red-500 text-xs font-medium">Sin stock ({p.stock ?? 0})</span>
                   ) : (
-                    <span className="text-red-600 font-bold">Inactivo</span>
+                    <span className="text-green-600 text-xs font-medium">{p.stock ?? "—"}</span>
                   )}
+                </td>
+                <td className="p-3">
+                  <div className="flex flex-col gap-1">
+                    {p.active ? (
+                      <span className="text-green-600 font-bold text-xs">Activo</span>
+                    ) : (
+                      <span className="text-red-600 font-bold text-xs">Inactivo</span>
+                    )}
+                    {p.isFeatured && <span className="text-xs text-yellow-600">⭐ Destacado</span>}
+                    {p.isNewArrival && <span className="text-xs text-blue-500">🆕 Nuevo</span>}
+                  </div>
                 </td>
                 <td className="p-3 flex gap-2">
                   <button
@@ -406,6 +409,11 @@ function AdminProducts() {
                       formData.append("subcategories[]", sub)
                     );
                   }
+
+                  // campos nuevos
+                  formData.append("brand", editingProduct.brand || "");
+                  formData.append("isFeatured", editingProduct.isFeatured ? "true" : "false");
+                  formData.append("isNewArrival", editingProduct.isNewArrival ? "true" : "false");
 
                   if (editingProduct.imageFile)
                     formData.append("image", editingProduct.imageFile);
@@ -649,6 +657,28 @@ function AdminProducts() {
                   </p>
                 </label>
               )}
+
+              {/* Marca */}
+              <label className="block mb-2">
+                Marca
+                <input type="text" value={editingProduct.brand || ""}
+                  onChange={(e) => setEditingProduct((p) => ({ ...p, brand: e.target.value }))}
+                  className="border w-full p-2 rounded mt-1" placeholder="Ej: Danfoss, Embraco..." />
+              </label>
+
+              {/* Destacados */}
+              <div className="flex gap-4 mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={!!editingProduct.isFeatured}
+                    onChange={(e) => setEditingProduct((p) => ({ ...p, isFeatured: e.target.checked }))} />
+                  <span className="text-sm">⭐ Destacado en landing</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={!!editingProduct.isNewArrival}
+                    onChange={(e) => setEditingProduct((p) => ({ ...p, isNewArrival: e.target.checked }))} />
+                  <span className="text-sm">🆕 Nuevo ingreso</span>
+                </label>
+              </div>
 
               <label className="block mb-4">
                 Imagen

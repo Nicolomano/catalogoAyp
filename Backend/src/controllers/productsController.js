@@ -10,8 +10,18 @@ import { uploadToR2, deleteFromR2, keyFromUrl } from "../utils/r2.js";
 /* ----------------------- CREAR PRODUCTO ----------------------- */
 export async function createProduct(req, res) {
   try {
-    const { name, description, priceUSD, priceARS, fixedInARS, productCode } =
-      req.body;
+    const {
+      name,
+      description,
+      priceUSD,
+      priceARS,
+      fixedInARS,
+      productCode,
+      brand,
+      stock,
+      isFeatured,
+      isNewArrival,
+    } = req.body;
 
     // Normalizar arrays
     const categories =
@@ -49,6 +59,8 @@ export async function createProduct(req, res) {
       priceARSFinal = Number(priceUSDFinal) * Number(rate || 1);
     }
 
+    const stockVal = stock != null ? Number(stock) : 0;
+
     const newProduct = new productModel({
       name,
       description,
@@ -59,6 +71,14 @@ export async function createProduct(req, res) {
       categories,
       subcategories,
       image,
+      brand: brand || "",
+      stock: stockVal,
+      inStock: stockVal > 0,
+      nameFromExcel: name,
+      nameEdited: false,
+      priceService: req.body.priceService != null ? Number(req.body.priceService) : undefined,
+      isFeatured: isFeatured === true || isFeatured === "true",
+      isNewArrival: isNewArrival === true || isNewArrival === "true",
     });
 
     await newProduct.save();
@@ -113,14 +133,29 @@ export async function updateProduct(req, res) {
         ? [req.body.subcategories]
         : req.body.subcategories || current.subcategories || [];
 
+    // Detect if name was manually changed by admin
+    const newName = req.body.name ?? current.name;
+    const nameChanged = req.body.name != null && req.body.name !== current.name;
+
     const updateData = {
-      name: req.body.name ?? current.name,
+      name: newName,
       description: req.body.description ?? current.description,
       productCode: req.body.productCode ?? current.productCode,
       fixedInARS: fixedFlag,
       categories,
       subcategories,
     };
+
+    if (nameChanged) {
+      updateData.nameEdited = true;
+    }
+
+    // Handle new optional fields
+    if (req.body.brand !== undefined) updateData.brand = req.body.brand;
+    if (req.body.isFeatured !== undefined)
+      updateData.isFeatured = req.body.isFeatured === true || req.body.isFeatured === "true";
+    if (req.body.isNewArrival !== undefined)
+      updateData.isNewArrival = req.body.isNewArrival === true || req.body.isNewArrival === "true";
 
     if (req.file?.buffer) {
       const filename = `products/${uuidv4()}.webp`;
@@ -195,6 +230,7 @@ export const getProductsByCategory = async (req, res) => {
       sort,
       page = 1,
       limit = 24,
+      brand,
     } = req.query;
 
     const filter = { active: true };
@@ -206,6 +242,8 @@ export const getProductsByCategory = async (req, res) => {
     if (subcategory && subcategory !== "all") {
       filter.subcategories = { $in: [subcategory] };
     }
+
+    if (brand) filter.brand = brand;
 
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -400,6 +438,113 @@ export const getCategoriesMeta = async (req, res) => {
     });
   }
 };
+
+/* ----------------------- OBTENER MARCAS ----------------------- */
+export async function getBrands(req, res) {
+  try {
+    const brands = await productModel.distinct("brand", { active: true, brand: { $ne: "" } });
+    res.json(brands.sort());
+  } catch (error) {
+    res.status(500).json({ message: "Error obteniendo marcas", error: error.message });
+  }
+}
+
+/* ----------------------- LANDING DATA ----------------------- */
+export async function getLandingData(req, res) {
+  try {
+    const [featured, newArrivals] = await Promise.all([
+      productModel.find({ active: true, isFeatured: true }).limit(8).lean(),
+      productModel.find({ active: true, isNewArrival: true }).sort({ createdAt: -1 }).limit(8).lean(),
+    ]);
+    res.json({ featured, newArrivals });
+  } catch (error) {
+    res.status(500).json({ message: "Error obteniendo datos landing", error: error.message });
+  }
+}
+
+/* ----------------------- IMPORTAR DESDE EXCEL ----------------------- */
+export async function importFromExcel(req, res) {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No se subió archivo" });
+
+    const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+    const results = { created: 0, updated: 0, errors: [] };
+
+    for (const row of rows) {
+      try {
+        // Extract fields - column names from the Excel
+        const rawCode = String(row["Codigo_ca"] || row["Codigo"] || "").trim().replace(/^'/, "");
+        const nameFromExcel = String(row["Descripcion"] || row["Descripción"] || "").trim();
+        const priceUSD = parseFloat(row["precio_ven"] || 0) || 0;
+
+        // Extract stock from Moneda column: "(5.00)$" → 5
+        const monedaStr = String(row["Moneda"] || "0");
+        const stockMatch = monedaStr.match(/\((\d+(?:\.\d+)?)\)/);
+        const stock = stockMatch ? Math.floor(parseFloat(stockMatch[1])) : 0;
+        const inStock = stock > 0;
+
+        if (!rawCode || rawCode === "" || rawCode === "undefined") continue;
+
+        const existing = await productModel.findOne({ productCode: rawCode });
+
+        if (existing) {
+          // Update: price and stock always. Name only if not manually edited.
+          const updateData = {
+            stock,
+            inStock,
+            priceUSD,
+            nameFromExcel,
+          };
+
+          // Only update name if admin hasn't manually edited it
+          if (!existing.nameEdited) {
+            updateData.name = nameFromExcel || existing.name;
+          }
+
+          // Recalculate ARS if not fixed
+          if (!existing.fixedInARS && priceUSD) {
+            const cfg = await Config.findOne();
+            const rate = cfg ? cfg.exchangeRate : 1;
+            updateData.priceARS = priceUSD * rate;
+          }
+
+          await productModel.findByIdAndUpdate(existing._id, updateData);
+          results.updated++;
+        } else {
+          // Create new product
+          if (!nameFromExcel) continue;
+
+          const cfg = await Config.findOne();
+          const rate = cfg ? cfg.exchangeRate : 1;
+          const priceARS = priceUSD ? priceUSD * rate : 0;
+
+          await productModel.create({
+            productCode: rawCode,
+            name: nameFromExcel,
+            nameFromExcel,
+            nameEdited: false,
+            description: nameFromExcel, // default, admin can edit later
+            priceUSD,
+            priceARS,
+            stock,
+            inStock,
+            active: inStock, // new products: active if has stock
+          });
+          results.created++;
+        }
+      } catch (rowErr) {
+        results.errors.push({ code: row["Codigo_ca"], error: rowErr.message });
+      }
+    }
+
+    res.json({ message: "Importación completada", ...results });
+  } catch (error) {
+    res.status(500).json({ message: "Error importando Excel", error: error.message });
+  }
+}
 
 export const exportProductsExcel = async (req, res) => {
   try {

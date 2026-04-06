@@ -10,11 +10,17 @@ import {
   getProductsAdmin,
   getCategoriesMeta,
   exportProductsExcel,
+  getBrands,
+  getLandingData,
+  importFromExcel,
 } from "../controllers/productsController.js";
 const productRouter = express.Router();
 import { protect } from "../middlewares/authMiddleware.js";
 import uploadCloud from "../middlewares/multer.js";
+import multer from "multer";
 import Category from "../services/models/category.js";
+
+const uploadMemory = multer({ storage: multer.memoryStorage() });
 
 //subide de imagen
 productRouter.post("/upload", uploadCloud.single("image"), uploadImage);
@@ -52,7 +58,11 @@ productRouter.get("/:category", getProductsByCategory);
 
 //productRouter.get("/:id", getProductByCode); // soporte para id directo
 
+productRouter.get("/brands", getBrands);
+productRouter.get("/landing", getLandingData);
+
 //admin
+productRouter.post("/import/excel", protect, uploadMemory.single("file"), importFromExcel);
 productRouter.post("/", protect, uploadCloud.single("image"), createProduct);
 productRouter.put("/:id", protect, uploadCloud.single("image"), updateProduct);
 productRouter.delete("/:id", protect, deleteProduct);

@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
 const CartContext = createContext();
-
 const CART_KEY = "ayp_cart_v1";
 
 function loadCart() {
@@ -16,12 +15,11 @@ function loadCart() {
 export function CartProvider({ children }) {
   const [cart, setCart] = useState(loadCart);
 
-  // Persistir en localStorage en cada cambio
   useEffect(() => {
     try {
       localStorage.setItem(CART_KEY, JSON.stringify(cart));
     } catch {
-      // localStorage lleno o no disponible (modo privado Safari)
+      // localStorage lleno o bloqueado (Safari privado)
     }
   }, [cart]);
 
@@ -41,7 +39,7 @@ export function CartProvider({ children }) {
     setCart((prev) => prev.filter((item) => item._id !== id));
   };
 
-  // Unificado para usar _id (antes usaba productCode causando bug silencioso)
+  // Unificado: usa _id en todo el carrito
   const updateQuantity = (id, quantity) => {
     if (quantity <= 0) return removeFromCart(id);
     setCart((prev) =>
@@ -51,11 +49,7 @@ export function CartProvider({ children }) {
 
   const clearCart = () => {
     setCart([]);
-    try {
-      localStorage.removeItem(CART_KEY);
-    } catch {
-      // silencioso
-    }
+    try { localStorage.removeItem(CART_KEY); } catch { /* silencioso */ }
   };
 
   return (
