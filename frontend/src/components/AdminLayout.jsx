@@ -100,6 +100,14 @@ function AdminLayout() {
             👤 Services
           </NavLink>
           <NavLink
+            to="/admin/landing"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? linkActive : ""}`
+            }
+          >
+            🏠 Página de inicio
+          </NavLink>
+          <NavLink
             to="/"
             className="ml-4 bg-white text-blue-800 px-3 py-1 rounded-md font-semibold hover:bg-blue-100 transition"
           >

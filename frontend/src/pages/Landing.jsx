@@ -5,6 +5,30 @@ import { ChevronRight, Wrench, Phone, MapPin, Clock, Zap } from "lucide-react";
 import API from "../api/axios";
 import HeroCarousel from "../components/HeroCarousel.jsx";
 
+const INFO_ICONS = [
+  <Zap className="h-6 w-6" />,
+  <Phone className="h-6 w-6" />,
+  <Wrench className="h-6 w-6" />,
+  <Clock className="h-6 w-6" />,
+];
+
+const DEFAULT_CONFIG = {
+  infoCards: [
+    { title: "Envíos rápidos",  desc: "A todo el país" },
+    { title: "WhatsApp",        desc: "Cotizá al instante" },
+    { title: "Precio service",  desc: "10% de descuento" },
+    { title: "Horario",         desc: "Lun-Vie 8 a 18hs" },
+  ],
+  aboutTitle:  "¿Quiénes somos?",
+  aboutText:   "A&P Refrigeración es un distribuidor mayorista de repuestos y equipos de refrigeración comercial e industrial. Más de 10 años en el rubro, atendiendo a instaladores y técnicos de todo el país.",
+  address:     "Dirección del local, Ciudad, Provincia",
+  phone:       "+54 11 XXXX-XXXX",
+  hours:       "Lunes a Viernes de 8:00 a 18:00hs",
+  kitTitle:    "Kit de instalación",
+  kitSubtitle: "Calculá todo lo que necesitás para una instalación completa. Seleccioná los componentes y armá tu pedido en minutos.",
+  kitCTA:      "Armar mi kit →",
+};
+
 function ProductCard({ product }) {
   return (
     <Link
@@ -56,6 +80,7 @@ function SectionTitle({ title, linkTo, linkLabel }) {
 function Landing() {
   const [landingData, setLandingData] = useState({ featured: [], newArrivals: [] });
   const [categories, setCategories] = useState([]);
+  const [siteConfig, setSiteConfig] = useState(DEFAULT_CONFIG);
 
   useEffect(() => {
     API.get("/products/landing")
@@ -70,6 +95,10 @@ function Landing() {
           : data;
         setCategories(normalized.slice(0, 8));
       })
+      .catch(() => {});
+
+    API.get("/site-config")
+      .then((res) => setSiteConfig((prev) => ({ ...prev, ...res.data })))
       .catch(() => {});
   }, []);
 
@@ -93,19 +122,14 @@ function Landing() {
 
           {/* Info rápida */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { icon: <Zap className="h-6 w-6" />, title: "Envíos rápidos", desc: "A todo el país" },
-              { icon: <Phone className="h-6 w-6" />, title: "WhatsApp", desc: "Cotizá al instante" },
-              { icon: <Wrench className="h-6 w-6" />, title: "Precio service", desc: "10% de descuento" },
-              { icon: <Clock className="h-6 w-6" />, title: "Horario", desc: "Lun-Vie 8 a 18hs" },
-            ].map((item) => (
+            {siteConfig.infoCards.map((card, i) => (
               <div
-                key={item.title}
+                key={i}
                 className="bg-white/10 rounded-xl p-4 flex flex-col items-center text-center gap-2 text-white"
               >
-                {item.icon}
-                <span className="font-semibold text-sm">{item.title}</span>
-                <span className="text-xs text-blue-200">{item.desc}</span>
+                {INFO_ICONS[i]}
+                <span className="font-semibold text-sm">{card.title}</span>
+                <span className="text-xs text-blue-200">{card.desc}</span>
               </div>
             ))}
           </div>
@@ -178,29 +202,22 @@ function Landing() {
           <section className="bg-white/10 rounded-2xl p-8 flex flex-col sm:flex-row items-center gap-6">
             <div className="text-5xl">🔧</div>
             <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-xl font-bold text-white mb-2">Kit de instalación</h2>
-              <p className="text-blue-200 text-sm">
-                Calculá todo lo que necesitás para una instalación completa.
-                Seleccioná los componentes y armá tu pedido en minutos.
-              </p>
+              <h2 className="text-xl font-bold text-white mb-2">{siteConfig.kitTitle}</h2>
+              <p className="text-blue-200 text-sm">{siteConfig.kitSubtitle}</p>
             </div>
             <Link
               to="/kit-instalacion"
               className="bg-white text-blue-700 font-bold px-6 py-3 rounded-xl hover:bg-blue-50 transition whitespace-nowrap"
             >
-              Armar mi kit →
+              {siteConfig.kitCTA}
             </Link>
           </section>
 
           {/* Info del local */}
           <section className="grid sm:grid-cols-2 gap-6">
             <div className="bg-white/10 rounded-2xl p-6 text-white">
-              <h2 className="text-lg font-bold mb-4">¿Quiénes somos?</h2>
-              <p className="text-blue-100 text-sm leading-relaxed">
-                A&P Refrigeración es un distribuidor mayorista de repuestos y equipos
-                de refrigeración comercial e industrial. Más de 10 años en el rubro,
-                atendiendo a instaladores y técnicos de todo el país.
-              </p>
+              <h2 className="text-lg font-bold mb-4">{siteConfig.aboutTitle}</h2>
+              <p className="text-blue-100 text-sm leading-relaxed">{siteConfig.aboutText}</p>
               <Link
                 to="/contacto"
                 className="inline-flex items-center gap-1 mt-4 text-sm text-blue-200 hover:text-white"
@@ -212,15 +229,15 @@ function Landing() {
               <h2 className="text-lg font-bold mb-4">Información</h2>
               <div className="flex items-start gap-3 text-sm text-blue-100">
                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>Dirección del local, Ciudad, Provincia</span>
+                <span>{siteConfig.address}</span>
               </div>
               <div className="flex items-start gap-3 text-sm text-blue-100">
                 <Phone className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>+54 11 XXXX-XXXX</span>
+                <span>{siteConfig.phone}</span>
               </div>
               <div className="flex items-start gap-3 text-sm text-blue-100">
                 <Clock className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>Lunes a Viernes de 8:00 a 18:00hs</span>
+                <span>{siteConfig.hours}</span>
               </div>
             </div>
           </section>

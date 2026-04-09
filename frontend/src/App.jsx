@@ -20,6 +20,7 @@ import KitInstalacion from "./pages/KitInstalacion.jsx";
 import AdminInstallKit from "./pages/AdminInstallKit.jsx";
 import AdminCategories from "./pages/AdminCategories.jsx";
 import AdminUsers from "./pages/AdminUsers.jsx";
+import AdminLanding from "./pages/AdminLanding.jsx";
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
           <Route path="install-kit" element={<AdminInstallKit />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="landing" element={<AdminLanding />} />
         </Route>
       </Routes>
     </BrowserRouter>
