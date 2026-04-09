@@ -3,13 +3,13 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { ChevronRight, Wrench, Phone, MapPin, Clock, Zap } from "lucide-react";
 import API from "../api/axios";
-import HeroCarousel from "../components/HeroCarousel.jsx";
 
+/* Íconos fijos para las 4 tarjetas de info */
 const INFO_ICONS = [
-  <Zap className="h-6 w-6" />,
-  <Phone className="h-6 w-6" />,
-  <Wrench className="h-6 w-6" />,
-  <Clock className="h-6 w-6" />,
+  <Zap className="h-5 w-5" />,
+  <Phone className="h-5 w-5" />,
+  <Wrench className="h-5 w-5" />,
+  <Clock className="h-5 w-5" />,
 ];
 
 const DEFAULT_CONFIG = {
@@ -33,9 +33,12 @@ function ProductCard({ product }) {
   return (
     <Link
       to={`/product/${product.productCode}`}
-      className="bg-white rounded-xl shadow hover:shadow-lg transition group flex flex-col"
+      className="bento flex flex-col hover:shadow-lg transition group"
     >
-      <div className="aspect-square flex items-center justify-center p-4 bg-gray-50 rounded-t-xl overflow-hidden">
+      <div
+        className="aspect-square flex items-center justify-center p-4 rounded-t-[20px]"
+        style={{ background: "var(--surface2)" }}
+      >
         {product.image ? (
           <img
             src={product.image}
@@ -44,31 +47,47 @@ function ProductCard({ product }) {
             loading="lazy"
           />
         ) : (
-          <div className="text-gray-300 text-4xl">📦</div>
+          <div className="text-4xl opacity-20">📦</div>
         )}
       </div>
       <div className="p-3 flex flex-col flex-1">
-        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1">{product.name}</h3>
+        <p className="text-xs font-medium mb-1" style={{ color: "var(--muted)" }}>
+          {product.brand || ""}
+        </p>
+        <h3 className="text-sm font-semibold line-clamp-2 flex-1" style={{ color: "var(--text)" }}>
+          {product.name}
+        </h3>
         {product.priceARS ? (
-          <p className="text-base font-bold text-blue-700 mt-2">
+          <p className="text-base font-bold mt-2" style={{ color: "var(--brand)" }}>
             ${product.priceARS.toLocaleString("es-AR")}
           </p>
         ) : (
-          <p className="text-sm text-gray-400 mt-2 italic">Consultar precio</p>
+          <p className="text-sm italic mt-2" style={{ color: "var(--muted)" }}>Consultar precio</p>
         )}
       </div>
     </Link>
   );
 }
 
-function SectionTitle({ title, linkTo, linkLabel }) {
+function SectionHeader({ tag, title, linkTo, linkLabel }) {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
+    <div className="flex items-end justify-between mb-6">
+      <div>
+        {tag && (
+          <span
+            className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md inline-block mb-2"
+            style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+          >
+            {tag}
+          </span>
+        )}
+        <h2 className="text-2xl font-bold" style={{ color: "var(--text)" }}>{title}</h2>
+      </div>
       {linkTo && (
         <Link
           to={linkTo}
-          className="flex items-center gap-1 text-sm text-blue-200 hover:text-white transition"
+          className="flex items-center gap-1 text-sm font-medium"
+          style={{ color: "var(--brand)" }}
         >
           {linkLabel} <ChevronRight className="h-4 w-4" />
         </Link>
@@ -79,26 +98,22 @@ function SectionTitle({ title, linkTo, linkLabel }) {
 
 function Landing() {
   const [landingData, setLandingData] = useState({ featured: [], newArrivals: [] });
-  const [categories, setCategories] = useState([]);
-  const [siteConfig, setSiteConfig] = useState(DEFAULT_CONFIG);
+  const [categories, setCategories]   = useState([]);
+  const [siteConfig, setSiteConfig]   = useState(DEFAULT_CONFIG);
 
   useEffect(() => {
-    API.get("/products/landing")
-      .then((res) => setLandingData(res.data))
-      .catch(() => {});
-
+    API.get("/products/landing").then((r) => setLandingData(r.data)).catch(() => {});
     API.get("/products/meta/categories")
-      .then((res) => {
-        const data = res.data || [];
-        const normalized = data.length && typeof data[0] === "string"
+      .then((r) => {
+        const data = r.data || [];
+        const norm = data.length && typeof data[0] === "string"
           ? data.map((c) => ({ category: c, subcategories: [] }))
           : data;
-        setCategories(normalized.slice(0, 8));
+        setCategories(norm.slice(0, 7));
       })
       .catch(() => {});
-
     API.get("/site-config")
-      .then((res) => setSiteConfig((prev) => ({ ...prev, ...res.data })))
+      .then((r) => setSiteConfig((prev) => ({ ...prev, ...r.data })))
       .catch(() => {});
   }, []);
 
@@ -108,141 +123,229 @@ function Landing() {
     <>
       <Helmet>
         <title>A&P Refrigeración — Repuestos y equipos de refrigeración</title>
-        <meta
-          name="description"
-          content="Catálogo A&P Refrigeración: productos y repuestos de refrigeración comercial e industrial. Envíos y cotización por WhatsApp."
-        />
+        <meta name="description" content="Catálogo A&P Refrigeración: productos y repuestos de refrigeración comercial e industrial." />
       </Helmet>
 
-      <div className="min-h-screen bg-ayp">
-        {/* Hero Carousel */}
-        <HeroCarousel type="home" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-14">
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-14">
+        {/* ── HERO BENTO GRID ── */}
+        <section>
+          <div className="grid grid-cols-12 gap-4" style={{ gridAutoRows: "160px" }}>
 
-          {/* Info rápida */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {siteConfig.infoCards.map((card, i) => (
-              <div
-                key={i}
-                className="bg-white/10 rounded-xl p-4 flex flex-col items-center text-center gap-2 text-white"
-              >
-                {INFO_ICONS[i]}
-                <span className="font-semibold text-sm">{card.title}</span>
-                <span className="text-xs text-blue-200">{card.desc}</span>
+            {/* Hero principal — 8 cols, 2 rows */}
+            <div
+              className="col-span-12 md:col-span-8 row-span-2 rounded-3xl p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden"
+              style={{ background: "var(--hero-grad)" }}
+            >
+              {/* Decoración fondo */}
+              <div className="absolute right-0 bottom-0 w-72 h-72 opacity-10 pointer-events-none">
+                <svg viewBox="0 0 400 400" fill="none">
+                  <circle cx="200" cy="200" r="180" stroke="white" strokeWidth="0.5"/>
+                  <circle cx="200" cy="200" r="120" stroke="white" strokeWidth="0.5"/>
+                  <circle cx="200" cy="200" r="60"  stroke="white" strokeWidth="0.5"/>
+                  <line x1="20" y1="200" x2="380" y2="200" stroke="white" strokeWidth="0.5"/>
+                  <line x1="200" y1="20"  x2="200" y2="380" stroke="white" strokeWidth="0.5"/>
+                </svg>
               </div>
-            ))}
-          </div>
-
-          {/* Categorías destacadas */}
-          {categories.length > 0 && (
-            <section>
-              <SectionTitle
-                title="Explorar por categoría"
-                linkTo="/catalogo"
-                linkLabel="Ver catálogo completo"
+              <div className="absolute top-0 right-0 w-64 h-64 pointer-events-none"
+                style={{ background: "radial-gradient(circle at top right, rgba(150,180,255,0.18) 0%, transparent 60%)" }}
               />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {categories.map((cat) => (
-                  <Link
-                    key={cat.category}
-                    to={`/catalogo?cat=${encodeURIComponent(cat.category)}`}
-                    className="bg-white/10 hover:bg-white/20 rounded-xl p-4 text-center text-white transition group"
-                  >
-                    <div className="text-3xl mb-2">🔧</div>
-                    <span className="text-sm font-medium group-hover:underline">
-                      {cat.category}
-                    </span>
-                  </Link>
-                ))}
-                <Link
-                  to="/catalogo"
-                  className="bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl p-4 text-center text-white transition flex flex-col items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">+</span>
-                  <span className="text-sm">Ver todas</span>
+
+              <div className="relative z-10">
+                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full inline-block mb-4 border border-white/15 text-white/60"
+                  style={{ background: "rgba(255,255,255,0.08)" }}>
+                  Stock permanente · Buenos Aires
+                </span>
+                <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight mb-3">
+                  Repuestos para<br/>
+                  <span style={{ color: "#99BBFF" }}>Refrigeración</span>
+                </h1>
+                <p className="text-white/60 text-sm sm:text-base max-w-sm leading-relaxed">
+                  Distribuidora oficial. Más de 2000 productos para el técnico profesional.
+                </p>
+              </div>
+
+              <div className="relative z-10 flex gap-3 flex-wrap">
+                <Link to="/catalogo"
+                  className="px-5 py-2.5 rounded-xl font-semibold text-sm bg-white hover:bg-slate-50 transition-colors"
+                  style={{ color: "#001A80" }}>
+                  Ver Catálogo →
+                </Link>
+                <Link to="/register"
+                  className="px-5 py-2.5 rounded-xl font-semibold text-sm border border-white/20 text-white/80 hover:border-white/40 hover:text-white transition-colors">
+                  Precio Service
                 </Link>
               </div>
-            </section>
-          )}
+            </div>
 
-          {/* Destacados */}
-          {featured.length > 0 && (
-            <section>
-              <SectionTitle
-                title="⭐ Destacados"
-                linkTo="/catalogo"
-                linkLabel="Ver todos"
-              />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {featured.map((p) => (
-                  <ProductCard key={p._id} product={p} />
-                ))}
+            {/* Stat 1 — 4 cols, 1 row */}
+            <div className="col-span-6 md:col-span-4 row-span-1 bento p-5 sm:p-6 flex flex-col justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                Productos
+              </p>
+              <div>
+                <p className="text-4xl font-black leading-none" style={{ color: "var(--text)" }}>
+                  2k<span style={{ color: "var(--brand)" }}>+</span>
+                </p>
+                <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>En catálogo</p>
               </div>
-            </section>
-          )}
+            </div>
 
-          {/* Nuevos ingresos */}
-          {newArrivals.length > 0 && (
-            <section>
-              <SectionTitle
-                title="🆕 Nuevos ingresos"
-                linkTo="/catalogo?sort=createdAt:desc"
-                linkLabel="Ver todos"
-              />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {newArrivals.map((p) => (
-                  <ProductCard key={p._id} product={p} />
-                ))}
+            {/* Stat 2 — dark — 4 cols, 1 row */}
+            <div
+              className="col-span-6 md:col-span-4 row-span-1 rounded-[20px] p-5 sm:p-6 flex flex-col justify-between border"
+              style={{ background: "var(--dark-card)", borderColor: "rgba(255,255,255,0.05)" }}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "rgba(153,187,255,0.6)" }}>
+                Precio Service
+              </p>
+              <div>
+                <p className="text-4xl font-black leading-none text-white">
+                  -10<span style={{ color: "#99BBFF" }}>%</span>
+                </p>
+                <p className="text-sm mt-1 text-white/40">Para técnicos matriculados</p>
               </div>
-            </section>
-          )}
+            </div>
 
-          {/* Kit de instalación CTA */}
-          <section className="bg-white/10 rounded-2xl p-8 flex flex-col sm:flex-row items-center gap-6">
-            <div className="text-5xl">🔧</div>
-            <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-xl font-bold text-white mb-2">{siteConfig.kitTitle}</h2>
-              <p className="text-blue-200 text-sm">{siteConfig.kitSubtitle}</p>
+          </div>
+        </section>
+
+        {/* ── INFO CARDS ── */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {siteConfig.infoCards.map((card, i) => (
+            <div key={i} className="bento p-5 flex flex-col items-center text-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              >
+                {INFO_ICONS[i]}
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>{card.title}</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{card.desc}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        {/* ── CATEGORÍAS ── */}
+        {categories.length > 0 && (
+          <section>
+            <SectionHeader tag="Categorías" title="Navegá por categoría" linkTo="/catalogo" linkLabel="Ver todas" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {categories.map((cat) => (
+                <Link
+                  key={cat.category}
+                  to={`/catalogo?cat=${encodeURIComponent(cat.category)}`}
+                  className="bento p-4 flex items-center gap-3 group"
+                >
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
+                    style={{ background: "var(--brand-tint)" }}
+                  >
+                    🔧
+                  </div>
+                  <span className="text-sm font-medium group-hover:underline" style={{ color: "var(--text)" }}>
+                    {cat.category}
+                  </span>
+                </Link>
+              ))}
+              <Link
+                to="/catalogo"
+                className="rounded-[20px] border-2 border-dashed flex flex-col items-center justify-center gap-1 py-4 transition-colors"
+                style={{ borderColor: "var(--brand-tint)", color: "var(--muted)" }}
+              >
+                <span className="text-2xl font-black" style={{ color: "var(--brand)" }}>+</span>
+                <span className="text-xs">Ver todas</span>
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {/* ── PRODUCTOS DESTACADOS ── */}
+        {featured.length > 0 && (
+          <section style={{ background: "var(--surface)", borderRadius: "24px", padding: "28px" }}>
+            <SectionHeader tag="Destacados" title="Más vendidos" linkTo="/catalogo" linkLabel="Ver todos" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {featured.map((p) => <ProductCard key={p._id} product={p} />)}
+            </div>
+          </section>
+        )}
+
+        {/* ── NUEVOS INGRESOS ── */}
+        {newArrivals.length > 0 && (
+          <section>
+            <SectionHeader tag="Nuevos ingresos" title="Últimas novedades" linkTo="/catalogo?sort=createdAt:desc" linkLabel="Ver todos" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {newArrivals.map((p) => <ProductCard key={p._id} product={p} />)}
+            </div>
+          </section>
+        )}
+
+        {/* ── CTAs DOBLES ── */}
+        <section className="grid md:grid-cols-2 gap-4">
+
+          {/* Kit de instalación */}
+          <div
+            className="rounded-3xl p-8 sm:p-10 flex flex-col justify-between"
+            style={{ background: "var(--hero-grad)", minHeight: "220px" }}
+          >
+            <div>
+              <span
+                className="text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full inline-block mb-4 border border-white/10"
+                style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
+              >
+                Kit completo
+              </span>
+              <h2 className="text-2xl font-bold text-white mb-2">{siteConfig.kitTitle}</h2>
+              <p className="text-white/60 text-sm leading-relaxed">{siteConfig.kitSubtitle}</p>
             </div>
             <Link
               to="/kit-instalacion"
-              className="bg-white text-blue-700 font-bold px-6 py-3 rounded-xl hover:bg-blue-50 transition whitespace-nowrap"
+              className="mt-6 self-start px-6 py-2.5 rounded-xl font-semibold text-sm bg-white hover:bg-slate-50 transition-colors"
+              style={{ color: "#001A80" }}
             >
               {siteConfig.kitCTA}
             </Link>
-          </section>
+          </div>
 
-          {/* Info del local */}
-          <section className="grid sm:grid-cols-2 gap-6">
-            <div className="bg-white/10 rounded-2xl p-6 text-white">
-              <h2 className="text-lg font-bold mb-4">{siteConfig.aboutTitle}</h2>
-              <p className="text-blue-100 text-sm leading-relaxed">{siteConfig.aboutText}</p>
-              <Link
-                to="/contacto"
-                className="inline-flex items-center gap-1 mt-4 text-sm text-blue-200 hover:text-white"
+          {/* Quiénes somos + contacto */}
+          <div className="bento p-8 sm:p-10 flex flex-col justify-between" style={{ minHeight: "220px" }}>
+            <div>
+              <span
+                className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md inline-block mb-4"
+                style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
               >
-                Contactanos <ChevronRight className="h-4 w-4" />
-              </Link>
+                Sobre nosotros
+              </span>
+              <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>{siteConfig.aboutTitle}</h2>
+              <p className="text-sm leading-relaxed line-clamp-3" style={{ color: "var(--muted)" }}>
+                {siteConfig.aboutText}
+              </p>
             </div>
-            <div className="bg-white/10 rounded-2xl p-6 text-white space-y-3">
-              <h2 className="text-lg font-bold mb-4">Información</h2>
-              <div className="flex items-start gap-3 text-sm text-blue-100">
-                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>{siteConfig.address}</span>
-              </div>
-              <div className="flex items-start gap-3 text-sm text-blue-100">
-                <Phone className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>{siteConfig.phone}</span>
-              </div>
-              <div className="flex items-start gap-3 text-sm text-blue-100">
-                <Clock className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>{siteConfig.hours}</span>
-              </div>
+            <div className="mt-4 space-y-2">
+              {siteConfig.address && (
+                <div className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
+                  <MapPin className="h-4 w-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
+                  {siteConfig.address}
+                </div>
+              )}
+              {siteConfig.phone && (
+                <div className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
+                  <Phone className="h-4 w-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
+                  {siteConfig.phone}
+                </div>
+              )}
+              {siteConfig.hours && (
+                <div className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
+                  <Clock className="h-4 w-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
+                  {siteConfig.hours}
+                </div>
+              )}
             </div>
-          </section>
+          </div>
+        </section>
 
-        </div>
       </div>
     </>
   );
