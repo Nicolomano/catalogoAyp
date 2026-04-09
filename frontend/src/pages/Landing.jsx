@@ -102,7 +102,12 @@ function Landing() {
   const [siteConfig, setSiteConfig]   = useState(DEFAULT_CONFIG);
 
   useEffect(() => {
-    API.get("/products/landing").then((r) => setLandingData(r.data)).catch(() => {});
+    API.get("/products/landing")
+      .then((r) => setLandingData({
+        featured:    Array.isArray(r.data?.featured)    ? r.data.featured    : [],
+        newArrivals: Array.isArray(r.data?.newArrivals) ? r.data.newArrivals : [],
+      }))
+      .catch(() => {});
     API.get("/products/meta/categories")
       .then((r) => {
         const data = r.data || [];
